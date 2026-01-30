@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS recipes (
   servings REAL,
   favorite INTEGER NOT NULL DEFAULT 0,
   source_url TEXT,
+  image_url TEXT,
+  image_width INTEGER,
+  image_height INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER
@@ -108,6 +111,32 @@ export async function initDatabase(): Promise<void> {
   const db = await getDatabase();
 
   await db.execAsync(CREATE_TABLES_SQL);
+
+  // Run migrations for existing databases
+  await runMigrations(db);
+}
+
+async function runMigrations(db: SQLiteDatabase): Promise<void> {
+  // Migration: Add image columns to recipes table if they don't exist
+  try {
+    // Check if image_url column exists
+    const tableInfo = await db.getAllAsync<{ name: string }>(
+      "PRAGMA table_info(recipes)"
+    );
+    const columnNames = tableInfo.map(col => col.name);
+
+    if (!columnNames.includes('image_url')) {
+      console.log('Running migration: Adding image columns to recipes table');
+      await db.execAsync(`
+        ALTER TABLE recipes ADD COLUMN image_url TEXT;
+        ALTER TABLE recipes ADD COLUMN image_width INTEGER;
+        ALTER TABLE recipes ADD COLUMN image_height INTEGER;
+      `);
+      console.log('Migration completed: image columns added');
+    }
+  } catch (error) {
+    console.error('Migration error:', error);
+  }
 }
 
 export async function closeDatabase(): Promise<void> {
