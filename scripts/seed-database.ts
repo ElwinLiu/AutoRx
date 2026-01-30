@@ -34,8 +34,8 @@ const DEFAULT_TEMPLATES = [
     sections: ['Preparation', 'Mixing', 'Baking', 'Cooling'],
   },
   {
-    name: 'Chinese Food',
-    sections: ['Prep & Marinate', 'Prepare Aromatics', 'Cooking', 'Finishing'],
+    name: '中餐',
+    sections: ['料头', '料汁', '烹饪', '要点'],
   },
   {
     name: 'Quick Weeknight',
@@ -51,33 +51,34 @@ const DEFAULT_TEMPLATES = [
 const DUMMY_RECIPES = [
   {
     name: 'Kung Pao Chicken',
-    templateName: 'Chinese Food',
+    templateName: '中餐',
     cookTimeMin: 30,
     servings: 4,
     favorite: true,
     imageUrl:
-      'https://images.unsplash.com/photo-1605704922285-e82455dba38b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+      'https://images.unsplash.com/photo-1525755662778-989d0524087e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
     imageWidth: 1080,
     imageHeight: 720,
     ingredients: [
-      { text: '1.5 lb boneless chicken thighs, cut into bite-sized pieces', orderIndex: 0 },
-      { text: '2 tbsp soy sauce', orderIndex: 1 },
-      { text: '1 tbsp cornstarch', orderIndex: 2 },
-      { text: '8 dried red chilies', orderIndex: 3 },
-      { text: '1 tsp Sichuan peppercorns', orderIndex: 4 },
-      { text: '1/2 cup roasted peanuts', orderIndex: 5 },
-      { text: '3 green onions, sliced', orderIndex: 6 },
-      { text: '4 cloves garlic, minced', orderIndex: 7 },
-      { text: '1 tbsp ginger, minced', orderIndex: 8 },
+      { name: 'boneless chicken thighs, cut into bite-sized pieces', amount: 1.5, unit: 'lb', orderIndex: 0 },
+      { name: 'soy sauce', amount: 2, unit: 'tbsp', orderIndex: 1 },
+      { name: 'cornstarch', amount: 1, unit: 'tbsp', orderIndex: 2 },
+      { name: 'dried red chilies', amount: 8, unit: '', orderIndex: 3 },
+      { name: 'Sichuan peppercorns', amount: 1, unit: 'tsp', orderIndex: 4 },
+      { name: 'roasted peanuts', amount: 0.5, unit: 'cup', orderIndex: 5 },
+      { name: 'green onions, sliced', amount: 3, unit: '', orderIndex: 6 },
+      { name: 'garlic, minced', amount: 4, unit: 'cloves', orderIndex: 7 },
+      { name: 'ginger, minced', amount: 1, unit: 'tbsp', orderIndex: 8 },
     ],
     sections: {
-      'Prep & Marinate':
-        'Cut chicken into bite-sized pieces.\nCombine chicken with soy sauce and cornstarch. Marinate for 15 minutes.',
-      'Prepare Aromatics':
-        'Mince garlic and ginger.\nSlice green onions, separating whites and greens.',
-      Cooking:
-        'Heat oil in a wok over high heat.\nAdd chilies and peppercorns, stir-fry until fragrant.\nAdd marinated chicken and stir-fry until just cooked.\nAdd aromatics and stir-fry for 1 minute.\nToss in peanuts and green onions. Stir to combine.',
-      Finishing: 'Transfer to a serving plate.\nServe immediately with steamed rice.',
+      '料头':
+        '鸡腿肉切丁，用生抽、料酒、淀粉腌制15分钟。\n干辣椒剪段，去籽。\n大葱切段，姜蒜切末。',
+      '料汁':
+        '生抽2勺、老抽半勺、料酒1勺、醋1勺、糖1勺、淀粉1勺、清水3勺，调成宫保汁备用。',
+      '烹饪':
+        '热锅凉油，中小火将花生米炸至金黄酥脆，捞出沥油。\n锅留底油，爆香干辣椒和花椒。\n大火下鸡丁滑炒至变色。\n加入葱姜蒜炒香。\n倒入调好的宫保汁，大火收汁。\n最后加入炸好的花生米，翻炒均匀即可出锅。',
+      '要点':
+        '鸡丁要大火快炒，保持嫩滑。\n宫保汁要提前调好，一气呵成。\n花生米最后放，保持酥脆口感。\n干辣椒不要炒糊，注意火候。',
     },
     tags: ['Spicy', 'Quick', 'Chinese'],
   },
@@ -92,14 +93,14 @@ const DUMMY_RECIPES = [
     imageWidth: 800,
     imageHeight: 1200,
     ingredients: [
-      { text: '3 ripe bananas, mashed', orderIndex: 0 },
-      { text: '1/3 cup melted butter', orderIndex: 1 },
-      { text: '1 tsp baking soda', orderIndex: 2 },
-      { text: 'Pinch of salt', orderIndex: 3 },
-      { text: '3/4 cup sugar', orderIndex: 4 },
-      { text: '1 large egg, beaten', orderIndex: 5 },
-      { text: '1 tsp vanilla extract', orderIndex: 6 },
-      { text: '1 1/2 cups all-purpose flour', orderIndex: 7 },
+      { name: 'ripe bananas, mashed', amount: 3, unit: '', orderIndex: 0 },
+      { name: 'melted butter', amount: 1/3, unit: 'cup', orderIndex: 1 },
+      { name: 'baking soda', amount: 1, unit: 'tsp', orderIndex: 2 },
+      { name: 'salt', amount: 1, unit: 'pinch', orderIndex: 3 },
+      { name: 'sugar', amount: 3/4, unit: 'cup', orderIndex: 4 },
+      { name: 'large egg, beaten', amount: 1, unit: '', orderIndex: 5 },
+      { name: 'vanilla extract', amount: 1, unit: 'tsp', orderIndex: 6 },
+      { name: 'all-purpose flour', amount: 1.5, unit: 'cups', orderIndex: 7 },
     ],
     sections: {
       Preparation:
@@ -124,15 +125,15 @@ const DUMMY_RECIPES = [
     imageWidth: 900,
     imageHeight: 600,
     ingredients: [
-      { text: '2 1/4 cups all-purpose flour', orderIndex: 0 },
-      { text: '1 tsp baking soda', orderIndex: 1 },
-      { text: '1 tsp salt', orderIndex: 2 },
-      { text: '1 cup butter, softened', orderIndex: 3 },
-      { text: '3/4 cup granulated sugar', orderIndex: 4 },
-      { text: '3/4 cup packed brown sugar', orderIndex: 5 },
-      { text: '1 tsp vanilla extract', orderIndex: 6 },
-      { text: '2 large eggs', orderIndex: 7 },
-      { text: '2 cups chocolate chips', orderIndex: 8 },
+      { name: 'all-purpose flour', amount: 2.25, unit: 'cups', orderIndex: 0 },
+      { name: 'baking soda', amount: 1, unit: 'tsp', orderIndex: 1 },
+      { name: 'salt', amount: 1, unit: 'tsp', orderIndex: 2 },
+      { name: 'butter, softened', amount: 1, unit: 'cup', orderIndex: 3 },
+      { name: 'granulated sugar', amount: 0.75, unit: 'cup', orderIndex: 4 },
+      { name: 'packed brown sugar', amount: 0.75, unit: 'cup', orderIndex: 5 },
+      { name: 'vanilla extract', amount: 1, unit: 'tsp', orderIndex: 6 },
+      { name: 'large eggs', amount: 2, unit: '', orderIndex: 7 },
+      { name: 'chocolate chips', amount: 2, unit: 'cups', orderIndex: 8 },
     ],
     sections: {
       Preparation:
@@ -148,86 +149,123 @@ const DUMMY_RECIPES = [
   },
   {
     name: 'Mapo Tofu',
-    templateName: 'Chinese Food',
+    templateName: '中餐',
     cookTimeMin: 25,
     servings: 4,
     favorite: true,
     imageUrl:
-      'https://images.unsplash.com/photo-1541544537156-21c5299228d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
     imageWidth: 1080,
     imageHeight: 720,
     ingredients: [
-      { text: '1 block soft tofu, cubed', orderIndex: 0 },
-      { text: '1/2 lb ground pork', orderIndex: 1 },
-      { text: '2 tbsp doubanjiang (spicy bean paste)', orderIndex: 2 },
-      { text: '1 tbsp fermented black beans, rinsed', orderIndex: 3 },
-      { text: '1 tsp Sichuan peppercorns, toasted and ground', orderIndex: 4 },
-      { text: '2 tbsp chili oil', orderIndex: 5 },
-      { text: '1 cup chicken stock', orderIndex: 6 },
-      { text: '2 green onions, chopped', orderIndex: 7 },
-      { text: '1 tbsp cornstarch mixed with 2 tbsp water', orderIndex: 8 },
+      { name: 'soft tofu, cubed', amount: 1, unit: 'block', orderIndex: 0 },
+      { name: 'ground pork', amount: 0.5, unit: 'lb', orderIndex: 1 },
+      { name: 'doubanjiang (spicy bean paste)', amount: 2, unit: 'tbsp', orderIndex: 2 },
+      { name: 'fermented black beans, rinsed', amount: 1, unit: 'tbsp', orderIndex: 3 },
+      { name: 'Sichuan peppercorns, toasted and ground', amount: 1, unit: 'tsp', orderIndex: 4 },
+      { name: 'chili oil', amount: 2, unit: 'tbsp', orderIndex: 5 },
+      { name: 'chicken stock', amount: 1, unit: 'cup', orderIndex: 6 },
+      { name: 'green onions, chopped', amount: 2, unit: '', orderIndex: 7 },
+      { name: 'cornstarch mixed with 2 tbsp water', amount: 1, unit: 'tbsp', orderIndex: 8 },
     ],
     sections: {
-      'Prep & Marinate':
-        'Cut tofu into 1-inch cubes and place in a bowl of hot water to remove excess water.\nRinse fermented black beans.',
-      'Prepare Aromatics':
-        'Toast Sichuan peppercorns in a dry pan until fragrant, then grind.\nChop green onions.',
-      Cooking:
-        'Heat chili oil in a wok over medium heat.\nAdd ground pork and cook until no longer pink.\nAdd doubanjiang and fermented black beans, stir-fry for 1 minute.\nAdd chicken stock and bring to a simmer.\nGently slide in tofu cubes and simmer for 3-4 minutes.\nPour in cornstarch slurry to thicken the sauce.',
-      Finishing:
-        'Sprinkle with ground Sichuan peppercorns.\nGarnish with green onions.\nServe hot with steamed rice.',
+      '料头':
+        '嫩豆腐切1.5厘米见方的小块，放入淡盐水中浸泡5分钟去豆腥味。\n豆豉用清水冲洗一下，稍微切碎。\n青蒜或葱切成小段备用。',
+      '料汁':
+        '生抽2勺、老抽半勺、料酒1勺、白糖1勺、鸡精少许、花椒粉1勺、淀粉2勺加半碗水调成芡汁备用。',
+      '烹饪':
+        '热锅凉油，中小火将牛肉末炒散至变色。\n加入豆瓣酱炒出红油，再加入豆豉炒香。\n加入蒜末姜末爆香。\n倒入高汤或清水烧开。\n轻轻滑入豆腐块，用铲背轻推，中火煮3-4分钟让豆腐入味。\n分三次淋入芡汁，每次等汤汁浓稠后再加下一次。',
+      '要点':
+        '豆腐用淡盐水浸泡可去豆腥且不易碎。\n勾芡要分三次，这样汤汁才能均匀包裹豆腐。\n花椒粉最后撒，保持麻香。\n用牛肉末比猪肉更香，也可用素肉末代替。',
     },
     tags: ['Spicy', 'Sichuan', 'Authentic'],
   },
   {
     name: 'Simple Fried Rice',
-    templateName: 'Chinese Food',
+    templateName: '中餐',
     cookTimeMin: 20,
     servings: 4,
     favorite: false,
+    imageUrl:
+      'https://images.unsplash.com/photo-1512058564366-18510be2db19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+    imageWidth: 1080,
+    imageHeight: 720,
     ingredients: [
-      { text: '3 cups cooked rice, preferably day-old', orderIndex: 0 },
-      { text: '2 tbsp vegetable oil', orderIndex: 1 },
-      { text: '2 eggs, beaten', orderIndex: 2 },
-      { text: '1 cup frozen peas and carrots', orderIndex: 3 },
-      { text: '2 green onions, sliced', orderIndex: 4 },
-      { text: '2 tbsp soy sauce', orderIndex: 5 },
-      { text: '1 tsp sesame oil', orderIndex: 6 },
-      { text: '1/2 tsp white pepper', orderIndex: 7 },
+      { name: 'cooked rice, preferably day-old', amount: 3, unit: 'cups', orderIndex: 0 },
+      { name: 'vegetable oil', amount: 2, unit: 'tbsp', orderIndex: 1 },
+      { name: 'eggs, beaten', amount: 2, unit: '', orderIndex: 2 },
+      { name: 'frozen peas and carrots', amount: 1, unit: 'cup', orderIndex: 3 },
+      { name: 'green onions, sliced', amount: 2, unit: '', orderIndex: 4 },
+      { name: 'soy sauce', amount: 2, unit: 'tbsp', orderIndex: 5 },
+      { name: 'sesame oil', amount: 1, unit: 'tsp', orderIndex: 6 },
+      { name: 'white pepper', amount: 0.5, unit: 'tsp', orderIndex: 7 },
     ],
     sections: {
-      'Prep & Marinate':
-        'Break up any clumps in the cold rice.\nBeat eggs in a small bowl.',
-      'Prepare Aromatics': 'Slice green onions, separating whites and greens.',
-      Cooking:
-        'Heat 1 tbsp oil in a wok over high heat.\nScramble eggs quickly and remove from pan.\nAdd remaining oil and stir-fry vegetables for 1 minute.\nAdd rice and stir-fry, breaking up clumps, for 2-3 minutes.\nAdd soy sauce, sesame oil, and white pepper.\nReturn eggs to pan and toss to combine.',
-      Finishing: 'Garnish with green onions.\nServe immediately.',
+      '料头':
+        '隔夜米饭用筷子拨散，确保没有结块。\n鸡蛋打散成蛋液。\n葱切葱花，葱白和葱绿分开。',
+      '料汁':
+        '生抽2勺、蚝油1勺、白胡椒粉少许、盐少许调成料汁备用。',
+      '烹饪':
+        '热锅凉油，大火将蛋液快速炒散成蛋花，盛出备用。\n锅中再加少许油，先下葱白爆香。\n倒入米饭大火快炒，用铲背压散结块，炒2-3分钟至米粒跳动。\n加入冷冻蔬菜丁翻炒均匀。\n淋入调好的料汁，快速翻炒均匀。\n最后倒入蛋花，撒入葱绿，翻匀即可。',
+      '要点':
+        '用隔夜饭最佳，水分少才能粒粒分明。\n全程大火快炒，锅气足才香。\n料汁提前调好，避免炒的时候手忙脚乱。\n蛋花最后放，保持嫩滑口感。',
     },
     tags: ['Quick', 'Leftover', 'Easy'],
+  },
+  {
+    name: '葱姜鸡焖饭',
+    templateName: '中餐',
+    cookTimeMin: 35,
+    servings: 3,
+    favorite: true,
+    imageUrl:
+      'https://images.unsplash.com/photo-1512058564366-18510be2db19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+    imageWidth: 1080,
+    imageHeight: 720,
+    ingredients: [
+      { name: '鸡腿肉', amount: 300, unit: 'g', orderIndex: 0 },
+      { name: '大米', amount: 2, unit: '杯', orderIndex: 1 },
+      { name: '葱', amount: 3, unit: '根', orderIndex: 2 },
+      { name: '姜', amount: 1, unit: '块', orderIndex: 3 },
+      { name: '料酒', amount: 1, unit: '勺', orderIndex: 4 },
+      { name: '生抽', amount: 2, unit: '勺', orderIndex: 5 },
+      { name: '蚝油', amount: 1, unit: '勺', orderIndex: 6 },
+      { name: '盐', amount: 0, unit: '适量', orderIndex: 7 },
+      { name: '淀粉', amount: 1, unit: '勺', orderIndex: 8 },
+      { name: '黑胡椒', amount: 0, unit: '少许', orderIndex: 9 },
+      { name: '白糖', amount: 0, unit: '少许', orderIndex: 10 },
+    ],
+    sections: {
+      '料头':
+        '鸡肉切块，用料酒、生抽、蚝油、盐、淀粉、黑胡椒抓匀，腌制 10–15 分钟。\n葱切段，姜切丝备用。',
+      '料汁':
+        '腌制鸡肉的料汁保留备用。\n准备少许盐和白糖用于调制葱姜油。',
+      '烹饪':
+        '锅中放少许油，加入葱姜炒出香味。\n加入少许盐和白糖调成葱姜油，稍微翻炒均匀后关火。\n将洗净的米放入电饭煲，加入常规的米水比例。\n把腌好的鸡块均匀铺在米上，倒入事先调好的葱姜油。\n启动电饭煲普通煮饭模式，焖煮约 20–25 分钟至饭熟鸡肉全熟。\n炊好后轻轻翻动，使鸡肉与米饭充分混合。',
+      '要点':
+        '葱姜油提前炒香，可让整锅饭更具层次感。\n鸡肉腌制后带汁上锅，焖煮时更加入味。\n米水比例按常规煮饭即可，鸡肉会出少许汤汁。\n最后撒上葱花增香点缀。',
+    },
+    tags: ['主食', '家常', '电饭煲'],
   },
 ];
 
 export async function seedDatabase(): Promise<void> {
-  console.log('🌱 Starting database seed...');
-
   try {
     await initDatabase();
     const db = await getDatabase();
 
     // Clear existing data (optional - comment out if you want to keep existing data)
-    console.log('🧹 Clearing existing data...');
     await db.execAsync(`
       DELETE FROM recipe_tags;
-      DELETE FROM tags;
       DELETE FROM recipe_sections;
       DELETE FROM recipe_ingredients;
       DELETE FROM recipes;
       DELETE FROM template_sections;
       DELETE FROM templates;
+      DELETE FROM tags;
     `);
 
     // Insert Templates and their Sections
-    console.log('📋 Inserting templates...');
     const templateIdMap = new Map<string, string>(); // name -> id
     const templateSectionIdMap = new Map<string, Map<string, string>>(); // templateName -> (sectionName -> id)
 
@@ -256,17 +294,10 @@ export async function seedDatabase(): Promise<void> {
       }
     }
 
-    console.log(`✅ Inserted ${DEFAULT_TEMPLATES.length} templates`);
-
     // Insert Recipes
-    console.log('🍳 Inserting recipes...');
-
     for (const recipe of DUMMY_RECIPES) {
       const templateId = templateIdMap.get(recipe.templateName);
-      if (!templateId) {
-        console.warn(`⚠️ Template not found for recipe: ${recipe.name}`);
-        continue;
-      }
+      if (!templateId) continue;
 
       const recipeId = generateId();
       const timestamp = now();
@@ -295,8 +326,8 @@ export async function seedDatabase(): Promise<void> {
       for (const ingredient of recipe.ingredients) {
         const ingredientId = generateId();
         await db.runAsync(
-          `INSERT INTO recipe_ingredients (id, recipe_id, order_index, text) VALUES (?, ?, ?, ?)`,
-          [ingredientId, recipeId, ingredient.orderIndex, ingredient.text]
+          `INSERT INTO recipe_ingredients (id, recipe_id, order_index, name, amount, unit) VALUES (?, ?, ?, ?, ?, ?)`,
+          [ingredientId, recipeId, ingredient.orderIndex, ingredient.name, ingredient.amount ?? null, ingredient.unit ?? null]
         );
       }
 
@@ -304,10 +335,7 @@ export async function seedDatabase(): Promise<void> {
       const sectionIdMap = templateSectionIdMap.get(recipe.templateName)!;
       for (const [sectionName, content] of Object.entries(recipe.sections)) {
         const templateSectionId = sectionIdMap.get(sectionName);
-        if (!templateSectionId) {
-          console.warn(`⚠️ Section not found: ${sectionName} in template ${recipe.templateName}`);
-          continue;
-        }
+        if (!templateSectionId) continue;
 
         const sectionId = generateId();
         await db.runAsync(
@@ -340,12 +368,8 @@ export async function seedDatabase(): Promise<void> {
         }
       }
     }
-
-    console.log(`✅ Inserted ${DUMMY_RECIPES.length} recipes`);
-
-    console.log('🎉 Database seed completed successfully!');
   } catch (error) {
-    console.error('❌ Error seeding database:', error);
+    console.error('Error seeding database:', error);
     throw error;
   } finally {
     await closeDatabase();

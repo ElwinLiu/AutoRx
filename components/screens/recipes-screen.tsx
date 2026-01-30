@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MasonryList from '@react-native-seoul/masonry-list';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -65,6 +65,15 @@ export function RecipesScreen() {
     }
   }, [isReady, fetchRecipes]);
 
+  // Refresh recipes when screen comes into focus (e.g., after database changes)
+  useFocusEffect(
+    useCallback(() => {
+      if (isReady) {
+        fetchRecipes();
+      }
+    }, [isReady, fetchRecipes])
+  );
+
   const filteredRecipes = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return recipes;
@@ -82,9 +91,22 @@ export function RecipesScreen() {
     [router]
   );
 
+  const handleFavoriteToggle = useCallback(() => {
+    // Refresh recipes if we're on the Favorites filter
+    if (activeFilter === 'Favorites') {
+      fetchRecipes();
+    }
+  }, [activeFilter, fetchRecipes]);
+
   const renderItem = useCallback(
-    ({ item }: { item: Recipe }) => <RecipeCard recipe={item} onPress={() => handleRecipePress(item)} />,
-    [handleRecipePress]
+    ({ item }: { item: Recipe }) => (
+      <RecipeCard
+        recipe={item}
+        onPress={() => handleRecipePress(item)}
+        onFavoriteToggle={handleFavoriteToggle}
+      />
+    ),
+    [handleRecipePress, handleFavoriteToggle]
   );
 
   const getItemHeight = useCallback((item: Recipe) => {

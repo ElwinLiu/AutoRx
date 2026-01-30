@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, Keyboard } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +14,7 @@ import Animated, {
   useAnimatedScrollHandler,
   interpolate,
   Extrapolation,
+  FadeInUp,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -27,13 +28,16 @@ import type { Ingredient } from '@/types/models';
 
 const formatAmount = (value: number) => {
   if (Number.isInteger(value)) return value.toString();
-  return value.toFixed(2).replace(/\.?0+$/, '');
+  const formatted = value.toFixed(2);
+  // Remove trailing zeros but keep at least one decimal if needed
+  return formatted.replace(/\.?0+$/, '').replace(/\.$/, '');
 };
 
-const formatMultiplier = (value: number) => {
-  if (value === 1) return '1x';
-  if (Number.isInteger(value)) return `${value}x`;
-  return `${value.toFixed(2).replace(/\.?0+$/, '')}x`;
+const formatServings = (value: number) => {
+  if (Number.isInteger(value)) return value.toString();
+  // Show up to 2 decimal places for servings
+  const formatted = value.toFixed(2);
+  return formatted.replace(/\.?0+$/, '').replace(/\.$/, '');
 };
 
 // Helper to find ingredient mentions in text and highlight with calculated amounts
@@ -41,7 +45,7 @@ const renderInstructionStep = (
   step: string,
   ingredients: Ingredient[],
   scale: number,
-  colors: { accent: string; textPrimary: string },
+  colors: { accent: string; textPrimary: string; textSecondary: string },
   typography: { body: object }
 ) => {
   // Sort ingredients by length (longest first) to avoid partial matches
@@ -88,13 +92,13 @@ const renderInstructionStep = (
   }
 
   return (
-    <Text style={{ ...typography.body, color: colors.textPrimary, marginBottom: 8 }}>
+    <Text style={{ ...typography.body, color: colors.textPrimary, lineHeight: 24 }}>
       {parts.map((part, index) => {
         if (part.type === 'highlight') {
           return (
             <Text key={index}>
-              <Text style={{ fontWeight: '600' }}>{part.content}</Text>
-              <Text style={{ color: colors.accent, fontWeight: '700' }}>
+              <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{part.content}</Text>
+              <Text style={{ color: colors.accent, fontWeight: '600' }}>
                 {' '}({part.amount} {part.unit})
               </Text>
             </Text>
@@ -112,7 +116,7 @@ const SPRING_CONFIG = {
   mass: 0.8,
 };
 
-const HERO_HEIGHT = 380;
+const HERO_HEIGHT = 420;
 const HERO_MIN_HEIGHT = 0;
 const HEADER_HEIGHT = 44;
 
@@ -137,18 +141,38 @@ export function RecipeDetailScreen() {
   const recipeId = Array.isArray(id) ? id[0] : id;
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { colors, spacing, radius, typography } = useAppTheme();
+  const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const { buildOptions } = useNativeHeaderOptions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<'ingredients' | 'instructions'>('ingredients');
-  const [servingsMode, setServingsMode] = useState<'servings' | 'multiplier'>('servings');
-  const [servings, setServings] = useState(recipe?.servings ?? 1);
+  const [servings, setServings] = useState(1);
   const [multiplier, setMultiplier] = useState(1);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [isFavorite, setIsFavorite] = useState(recipe?.isFavorite ?? false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [isEditingServings, setIsEditingServings] = useState(false);
+  const [tempServings, setTempServings] = useState('');
+
+  // Servings input handlers
+  const handleServingsSubmit = useCallback(() => {
+    const newServings = parseFloat(tempServings);
+    if (!isNaN(newServings) && newServings > 0) {
+      setServings(newServings);
+      if (recipe) {
+        setMultiplier(newServings / recipe.servings);
+      }
+    }
+    setIsEditingServings(false);
+    setTempServings('');
+    Keyboard.dismiss();
+  }, [tempServings, recipe]);
+
+  const handleServingsPress = useCallback(() => {
+    setTempServings(servings.toString());
+    setIsEditingServings(true);
+  }, [servings]);
 
   // Persist favorite toggle to database
   const handleToggleFavorite = useCallback(async () => {
@@ -188,6 +212,8 @@ export function RecipeDetailScreen() {
               instructionSections: data.instructionSections,
             });
             setIsFavorite(data.isFavorite);
+            setServings(data.servings);
+            setMultiplier(1);
           }
         } catch (err) {
           console.error('Error fetching recipe:', err);
@@ -199,11 +225,12 @@ export function RecipeDetailScreen() {
     }
   }, [recipeId]);
 
-  const scale = servingsMode === 'servings' ? (recipe ? servings / recipe.servings : 1) : multiplier;
+  const scale = recipe ? servings / recipe.servings : 1;
   const translateX = useSharedValue(0);
   const contextX = useRef(0);
   const activeIndex = activeTab === 'ingredients' ? 0 : 1;
   const scrollY = useSharedValue(0);
+
 
   // Sync translateX with activeTab when tab is clicked
   React.useEffect(() => {
@@ -258,6 +285,15 @@ export function RecipeDetailScreen() {
     });
   }, []);
 
+  const toggleAllIngredients = useCallback(() => {
+    if (!recipe) return;
+    if (checkedIngredients.size === recipe.ingredients.length) {
+      setCheckedIngredients(new Set());
+    } else {
+      setCheckedIngredients(new Set(recipe.ingredients.map(i => i.id)));
+    }
+  }, [recipe, checkedIngredients.size]);
+
   useLayoutEffect(() => {
     if (!recipe) return;
     navigation.setOptions(
@@ -303,6 +339,10 @@ export function RecipeDetailScreen() {
     transform: [{ translateX: translateX.value }],
   }));
 
+  const tabPillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: withSpring(activeIndex * 120, SPRING_CONFIG) }],
+  }));
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -328,13 +368,42 @@ export function RecipeDetailScreen() {
           width: '100%',
           height: '100%',
         },
+        topGradient: {
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 120,
+        },
         gradient: {
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 0,
-          height: 160,
+          height: 200,
         },
+        heroBadge: {
+          position: 'absolute',
+          bottom: 80,
+          right: spacing.lg,
+          flexDirection: 'row',
+          gap: spacing.sm,
+        },
+        badge: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.xs,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.xs,
+          borderRadius: radius.pill,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        },
+        badgeText: {
+          color: colors.textInverted,
+          ...typography.footnote,
+          fontWeight: '600',
+        },
+
         header: {
           position: 'absolute',
           top: 0,
@@ -348,38 +417,70 @@ export function RecipeDetailScreen() {
           paddingHorizontal: spacing.lg,
           paddingBottom: spacing.sm,
         },
+        headerTitleContainer: {
+          position: 'absolute',
+          top: 0,
+          left: 60,
+          right: 60,
+          height: insets.top + HEADER_HEIGHT,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          paddingBottom: spacing.sm,
+          zIndex: 99,
+        },
+        headerTitle: {
+          ...typography.subheadline,
+          color: colors.textPrimary,
+          fontWeight: '600',
+          opacity: 0,
+        },
         scrollView: {
           flex: 1,
         },
         scrollContent: {
-          paddingTop: HERO_HEIGHT - 40,
+          paddingTop: HERO_HEIGHT - 60,
           paddingBottom: insets.bottom + 120,
         },
         contentCard: {
           backgroundColor: colors.backgroundGrouped,
           borderTopLeftRadius: radius.xl,
           borderTopRightRadius: radius.xl,
-          paddingTop: spacing.lg,
+          paddingTop: spacing.xl,
           minHeight: 600,
+          ...shadows.md,
         },
         content: {
           paddingHorizontal: spacing.lg,
           gap: spacing.lg,
         },
+        titleContainer: {
+          marginBottom: spacing.xs,
+        },
         title: {
-          ...typography.heading,
+          ...typography.title,
           color: colors.textPrimary,
+          letterSpacing: -0.5,
+        },
+        subtitle: {
+          ...typography.subheadline,
+          color: colors.textSecondary,
+          marginTop: spacing.xs,
+        },
+        tagContainer: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
         },
         tag: {
           paddingHorizontal: spacing.md,
           paddingVertical: 6,
           borderRadius: radius.pill,
           backgroundColor: colors.tagBg,
-          alignSelf: 'flex-start',
         },
         tagText: {
           color: colors.tagText,
           ...typography.footnote,
+          fontWeight: '500',
         },
         metaRow: {
           flexDirection: 'row',
@@ -389,93 +490,135 @@ export function RecipeDetailScreen() {
         metaItem: {
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.xs,
+          gap: spacing.sm,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.xs,
+          backgroundColor: colors.surfaceSecondary,
+          borderRadius: radius.md,
         },
         metaText: {
           color: colors.textSecondary,
           ...typography.subheadline,
+          fontWeight: '500',
         },
         servingsCard: {
           backgroundColor: colors.surfacePrimary,
           borderRadius: radius.lg,
           padding: spacing.md,
-          gap: spacing.md,
-        },
-        servingsToggle: {
           flexDirection: 'row',
-          backgroundColor: colors.backgroundGrouped,
-          borderRadius: radius.md,
-          padding: 4,
-        },
-        servingsToggleButton: {
-          flex: 1,
-          paddingVertical: spacing.sm,
           alignItems: 'center',
-          borderRadius: radius.sm,
+          justifyContent: 'space-between',
+          ...shadows.sm,
         },
-        servingsToggleButtonActive: {
-          backgroundColor: colors.surfacePrimary,
-        },
-        servingsToggleText: {
+        servingsLabelText: {
           ...typography.subheadline,
           color: colors.textSecondary,
-        },
-        servingsToggleTextActive: {
-          color: colors.textPrimary,
-          fontWeight: '600',
+          fontWeight: '500',
         },
         servingsControls: {
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.xl,
-        },
-        servingsButton: {
-          width: 40,
-          height: 40,
-          borderRadius: radius.md,
-          backgroundColor: colors.backgroundGrouped,
-          alignItems: 'center',
-          justifyContent: 'center',
+          gap: spacing.md,
         },
         servingsValue: {
+          flexDirection: 'row',
           alignItems: 'center',
+          gap: spacing.xs,
+          paddingVertical: spacing.xs,
+          paddingHorizontal: spacing.md,
+          borderRadius: radius.md,
+          backgroundColor: colors.backgroundGrouped,
+          minWidth: 70,
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: 'transparent',
+        },
+        servingsValueActive: {
+          backgroundColor: colors.surfacePrimary,
+          borderColor: colors.accent,
         },
         servingsNumber: {
           ...typography.title3,
           color: colors.textPrimary,
-          fontWeight: '700',
+          fontWeight: '600',
+          textAlign: 'center',
         },
-        servingsLabel: {
+        servingsNumberActive: {
+          color: colors.accent,
+        },
+        servingsUnit: {
           ...typography.footnote,
           color: colors.textTertiary,
+        },
+        servingsUnitActive: {
+          color: colors.accent,
+        },
+        servingsInput: {
+          ...typography.title3,
+          color: colors.accent,
+          fontWeight: '600',
+          minWidth: 50,
+          textAlign: 'center',
+          padding: 0,
+        },
+        presetContainer: {
+          flexDirection: 'row',
+          gap: spacing.xs,
+        },
+        presetButton: {
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 4,
+          borderRadius: radius.pill,
+          backgroundColor: colors.backgroundGrouped,
+          minWidth: 36,
+          alignItems: 'center',
+        },
+        presetButtonActive: {
+          backgroundColor: colors.accent,
+        },
+        presetText: {
+          ...typography.footnote,
+          color: colors.textSecondary,
+          fontWeight: '500',
+        },
+        presetTextActive: {
+          color: colors.textInverted,
         },
         sectionToggle: {
           flexDirection: 'row',
           justifyContent: 'center',
-          gap: spacing.xl,
           marginBottom: spacing.md,
+          backgroundColor: colors.surfaceSecondary,
+          borderRadius: radius.pill,
+          padding: 4,
+          alignSelf: 'center',
+          position: 'relative',
+          width: 248,
+        },
+        sectionTogglePill: {
+          position: 'absolute',
+          top: 4,
+          bottom: 4,
+          left: 4,
+          width: 120,
+          borderRadius: radius.pill,
+          backgroundColor: colors.surfacePrimary,
+          ...shadows.sm,
         },
         sectionToggleButton: {
           paddingVertical: spacing.sm,
-          width: 100,
+          flex: 1,
           alignItems: 'center',
+          zIndex: 1,
         },
         sectionToggleText: {
-          ...typography.body,
+          ...typography.subheadline,
           color: colors.textSecondary,
+          fontWeight: '500',
         },
         sectionToggleTextActive: {
           color: colors.textPrimary,
           fontWeight: '600',
-        },
-        sectionToggleIndicator: {
-          height: 3,
-          backgroundColor: colors.textPrimary,
-          borderRadius: radius.pill,
-          marginTop: spacing.xs,
-          width: 60,
-          alignSelf: 'center',
         },
         tabsContainer: {
           flex: 1,
@@ -488,10 +631,34 @@ export function RecipeDetailScreen() {
           width,
           paddingHorizontal: spacing.lg,
         },
+        ingredientsHeader: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+          paddingHorizontal: spacing.sm,
+        },
+        ingredientsTitle: {
+          ...typography.subheadline,
+          color: colors.textSecondary,
+          fontWeight: '600',
+        },
+        checkAllButton: {
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.xs,
+          borderRadius: radius.pill,
+          backgroundColor: colors.surfaceSecondary,
+        },
+        checkAllText: {
+          ...typography.footnote,
+          color: colors.accent,
+          fontWeight: '600',
+        },
         ingredientsCard: {
           backgroundColor: colors.surfacePrimary,
           borderRadius: radius.lg,
           overflow: 'hidden',
+          ...shadows.sm,
         },
         ingredientRow: {
           flexDirection: 'row',
@@ -510,40 +677,70 @@ export function RecipeDetailScreen() {
           ...typography.body,
           color: colors.textPrimary,
         },
+        ingredientTextChecked: {
+          textDecorationLine: 'line-through',
+          color: colors.textTertiary,
+        },
         ingredientAmount: {
-          color: colors.textSecondary,
+          color: colors.accent,
           ...typography.subheadline,
+          fontWeight: '600',
+        },
+        ingredientAmountChecked: {
+          color: colors.textTertiary,
         },
         checkbox: {
-          width: 24,
-          height: 24,
+          width: 26,
+          height: 26,
           borderRadius: radius.pill,
           borderWidth: 2,
           borderColor: colors.textTertiary,
           alignItems: 'center',
           justifyContent: 'center',
+          backgroundColor: 'transparent',
         },
         checkboxChecked: {
-          backgroundColor: colors.accent,
-          borderColor: colors.accent,
+          backgroundColor: colors.success,
+          borderColor: colors.success,
         },
         instructionSection: {
           padding: spacing.lg,
           borderRadius: radius.lg,
           backgroundColor: colors.surfacePrimary,
           marginBottom: spacing.md,
+          ...shadows.sm,
         },
         instructionTitle: {
           ...typography.subheadline,
           color: colors.textSecondary,
           textTransform: 'uppercase',
           letterSpacing: 1,
-          marginBottom: spacing.sm,
+          marginBottom: spacing.md,
+          fontWeight: '600',
         },
         instructionStep: {
+          flexDirection: 'row',
+          gap: spacing.md,
+          marginBottom: spacing.lg,
+        },
+        stepNumber: {
+          width: 28,
+          height: 28,
+          borderRadius: radius.pill,
+          backgroundColor: colors.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        stepNumberText: {
+          color: colors.textInverted,
+          ...typography.footnote,
+          fontWeight: '700',
+        },
+        stepContent: {
+          flex: 1,
           ...typography.body,
           color: colors.textPrimary,
-          marginBottom: spacing.sm,
+          lineHeight: 24,
         },
         emptyState: {
           padding: spacing.xl,
@@ -555,7 +752,7 @@ export function RecipeDetailScreen() {
           textAlign: 'center',
         },
       }),
-    [colors, insets.bottom, insets.top, radius, spacing, typography, width]
+    [colors, insets.bottom, insets.top, radius, shadows, spacing, typography, width]
   );
 
   if (isLoading) {
@@ -578,19 +775,10 @@ export function RecipeDetailScreen() {
 
 
 
-  const handleDecrement = () => {
-    if (servingsMode === 'servings') {
-      setServings((prev) => Math.max(1, prev - 1));
-    } else {
-      setMultiplier((prev) => Math.max(0.25, prev - 0.25));
-    }
-  };
-
-  const handleIncrement = () => {
-    if (servingsMode === 'servings') {
-      setServings((prev) => prev + 1);
-    } else {
-      setMultiplier((prev) => prev + 0.25);
+  const applyPreset = (value: number) => {
+    setMultiplier(value);
+    if (recipe) {
+      setServings(Math.round(recipe.servings * value));
     }
   };
 
@@ -607,10 +795,29 @@ export function RecipeDetailScreen() {
                 <Ionicons name="restaurant-outline" size={40} color={colors.textTertiary} />
               </View>
             )}
+            {/* Top gradient for status bar */}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.4)', 'transparent']}
+              style={styles.topGradient}
+            />
             <LinearGradient
               colors={['transparent', colors.backgroundGrouped]}
               style={styles.gradient}
             />
+            {/* Hero badges */}
+            <View style={styles.heroBadge}>
+              <View style={styles.badge}>
+                <Ionicons name="time-outline" size={12} color={colors.textInverted} />
+                <Text style={styles.badgeText}>{recipe.time}</Text>
+              </View>
+              {isFavorite && (
+                <View style={styles.badge}>
+                  <Ionicons name="heart" size={12} color="#FF3B30" />
+                  <Text style={styles.badgeText}>Favorite</Text>
+                </View>
+              )}
+            </View>
+
           </View>
         </Animated.View>
 
@@ -648,15 +855,20 @@ export function RecipeDetailScreen() {
         >
           <View style={styles.contentCard}>
             <View style={styles.content}>
-              <View>
+              <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.titleContainer}>
                 <Text style={styles.title}>{recipe.title}</Text>
-              </View>
+                <Text style={styles.subtitle}>{recipe.template} Recipe</Text>
+              </Animated.View>
 
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{recipe.template}</Text>
-            </View>
+            <Animated.View entering={FadeInUp.duration(400).delay(150)} style={styles.tagContainer}>
+              {recipe.tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </Animated.View>
 
-            <View style={styles.metaRow}>
+            <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.metaText}>{recipe.time}</Text>
@@ -664,67 +876,79 @@ export function RecipeDetailScreen() {
               <View style={styles.metaItem}>
                 <Ionicons name="people-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.metaText}>
-                  {recipe.servings} servings (original)
+                  {recipe.servings} servings
                 </Text>
               </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.servingsCard}>
-              <View style={styles.servingsToggle}>
-                <Pressable
-                  onPress={() => setServingsMode('servings')}
-                  style={[
-                    styles.servingsToggleButton,
-                    servingsMode === 'servings' && styles.servingsToggleButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.servingsToggleText,
-                      servingsMode === 'servings' && styles.servingsToggleTextActive,
-                    ]}
-                  >
-                    Servings
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setServingsMode('multiplier')}
-                  style={[
-                    styles.servingsToggleButton,
-                    servingsMode === 'multiplier' && styles.servingsToggleButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.servingsToggleText,
-                      servingsMode === 'multiplier' && styles.servingsToggleTextActive,
-                    ]}
-                  >
-                    Multiplier
-                  </Text>
-                </Pressable>
-              </View>
+            <Animated.View entering={FadeInUp.duration(400).delay(250)} style={styles.servingsCard}>
+              <Text style={styles.servingsLabelText}>Scale</Text>
 
               <View style={styles.servingsControls}>
-                <Pressable onPress={handleDecrement} style={styles.servingsButton}>
-                  <Ionicons name="remove" size={20} color={colors.textPrimary} />
-                </Pressable>
-                <View style={styles.servingsValue}>
-                  <Text style={styles.servingsNumber}>
-                    {servingsMode === 'servings' ? servings : formatMultiplier(multiplier)}
-                  </Text>
-                  <Text style={styles.servingsLabel}>
-                    {servingsMode === 'servings' ? 'servings' : 'multiplier'}
-                  </Text>
+                <View style={styles.presetContainer}>
+                  {[0.5, 1, 2].map((preset) => (
+                    <Pressable
+                      key={preset}
+                      onPress={() => applyPreset(preset)}
+                      style={[
+                        styles.presetButton,
+                        multiplier === preset && styles.presetButtonActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.presetText,
+                          multiplier === preset && styles.presetTextActive,
+                        ]}
+                      >
+                        {preset === 0.5 ? '½x' : `${preset}x`}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
-                <Pressable onPress={handleIncrement} style={styles.servingsButton}>
-                  <Ionicons name="add" size={20} color={colors.textPrimary} />
+
+                <Pressable
+                  onPress={handleServingsPress}
+                  style={[
+                    styles.servingsValue,
+                    isEditingServings && styles.servingsValueActive,
+                  ]}
+                >
+                  {isEditingServings ? (
+                    <TextInput
+                      style={styles.servingsInput}
+                      value={tempServings}
+                      onChangeText={setTempServings}
+                      onSubmitEditing={handleServingsSubmit}
+                      onBlur={handleServingsSubmit}
+                      keyboardType="decimal-pad"
+                      autoFocus
+                      selectTextOnFocus
+                    />
+                  ) : (
+                    <Text style={[
+                      styles.servingsNumber,
+                      isEditingServings && styles.servingsNumberActive,
+                    ]}>
+                      {formatServings(servings)}
+                    </Text>
+                  )}
+                  <Text style={[
+                    styles.servingsUnit,
+                    isEditingServings && styles.servingsUnitActive,
+                  ]}>
+                    {servings === 1 ? 'serving' : 'servings'}
+                  </Text>
                 </Pressable>
               </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.sectionToggle}>
-              <Pressable onPress={() => setActiveTab('ingredients')} style={styles.sectionToggleButton}>
+            <Animated.View entering={FadeInUp.duration(400).delay(300)} style={styles.sectionToggle}>
+              <Animated.View style={[styles.sectionTogglePill, tabPillStyle]} />
+              <Pressable
+                onPress={() => setActiveTab('ingredients')}
+                style={styles.sectionToggleButton}
+              >
                 <Text
                   style={[
                     styles.sectionToggleText,
@@ -733,9 +957,11 @@ export function RecipeDetailScreen() {
                 >
                   Ingredients
                 </Text>
-                {activeTab === 'ingredients' && <View style={styles.sectionToggleIndicator} />}
               </Pressable>
-              <Pressable onPress={() => setActiveTab('instructions')} style={styles.sectionToggleButton}>
+              <Pressable
+                onPress={() => setActiveTab('instructions')}
+                style={styles.sectionToggleButton}
+              >
                 <Text
                   style={[
                     styles.sectionToggleText,
@@ -744,14 +970,23 @@ export function RecipeDetailScreen() {
                 >
                   Instructions
                 </Text>
-                {activeTab === 'instructions' && <View style={styles.sectionToggleIndicator} />}
               </Pressable>
-            </View>
+            </Animated.View>
           </View>
 
           <GestureDetector gesture={panGesture}>
             <Animated.View style={[styles.tabsContent, animatedStyle]}>
               <View style={styles.tabPanel}>
+                <View style={styles.ingredientsHeader}>
+                  <Text style={styles.ingredientsTitle}>
+                    {checkedIngredients.size}/{recipe.ingredients.length} checked
+                  </Text>
+                  <Pressable onPress={toggleAllIngredients} style={styles.checkAllButton}>
+                    <Text style={styles.checkAllText}>
+                      {checkedIngredients.size === recipe.ingredients.length ? 'Uncheck All' : 'Check All'}
+                    </Text>
+                  </Pressable>
+                </View>
                 <View style={styles.ingredientsCard}>
                   {recipe.ingredients.map((ingredient, index) => {
                     const checked = checkedIngredients.has(ingredient.id);
@@ -763,17 +998,12 @@ export function RecipeDetailScreen() {
                         style={[styles.ingredientRow, isLast && styles.ingredientRowLast]}
                       >
                         <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                          {checked && <Ionicons name="checkmark" size={14} color={colors.textInverted} />}
+                          {checked && <Ionicons name="checkmark" size={16} color={colors.textInverted} />}
                         </View>
-                        <Text
-                          style={[
-                            styles.ingredientText,
-                            checked && { textDecorationLine: 'line-through', color: colors.textTertiary },
-                          ]}
-                        >
+                        <Text style={[styles.ingredientText, checked && styles.ingredientTextChecked]}>
                           {ingredient.item}
                         </Text>
-                        <Text style={styles.ingredientAmount}>
+                        <Text style={[styles.ingredientAmount, checked && styles.ingredientAmountChecked]}>
                           {formatAmount(ingredient.amount * scale)} {ingredient.unit}
                         </Text>
                       </Pressable>
@@ -787,8 +1017,13 @@ export function RecipeDetailScreen() {
                   <View key={section.id} style={styles.instructionSection}>
                     <Text style={styles.instructionTitle}>{section.name}</Text>
                     {section.steps.map((step, index) => (
-                      <View key={`${section.id}-${index}`}>
-                        {renderInstructionStep(step, recipe.ingredients, scale, colors, typography)}
+                      <View key={`${section.id}-${index}`} style={styles.instructionStep}>
+                        <View style={styles.stepNumber}>
+                          <Text style={styles.stepNumberText}>{index + 1}</Text>
+                        </View>
+                        <View style={styles.stepContent}>
+                          {renderInstructionStep(step, recipe.ingredients, scale, colors, typography)}
+                        </View>
                       </View>
                     ))}
                   </View>

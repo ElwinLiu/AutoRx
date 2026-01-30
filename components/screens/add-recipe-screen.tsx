@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -52,6 +52,13 @@ export function AddRecipeScreen() {
   useEffect(() => {
     fetchTemplates();
   }, [fetchTemplates]);
+
+  // Refresh templates when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchTemplates();
+    }, [fetchTemplates])
+  );
 
   const addTag = (tag: string) => {
     if (!tag || tags.includes(tag)) return;

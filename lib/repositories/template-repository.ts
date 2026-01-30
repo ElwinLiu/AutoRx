@@ -124,19 +124,29 @@ export class TemplateRepository extends BaseRepository {
       const id = this.generateId();
       const now = this.now();
 
-      await db.runAsync(
-        `INSERT INTO templates (id, name, created_at, updated_at)
-         VALUES (?, ?, ?, ?)`,
-        [id, data.name, now, now]
-      );
+      // Use explicit transaction
+      await db.execAsync('BEGIN TRANSACTION');
 
-      // Insert sections
-      for (let i = 0; i < data.sections.length; i++) {
+      try {
         await db.runAsync(
-          `INSERT INTO template_sections (id, template_id, name, order_index, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [this.generateId(), id, data.sections[i].name, i, now, now]
+          `INSERT INTO templates (id, name, created_at, updated_at)
+           VALUES (?, ?, ?, ?)`,
+          [id, data.name, now, now]
         );
+
+        // Insert sections
+        for (let i = 0; i < data.sections.length; i++) {
+          await db.runAsync(
+            `INSERT INTO template_sections (id, template_id, name, order_index, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [this.generateId(), id, data.sections[i].name, i, now, now]
+          );
+        }
+
+        await db.execAsync('COMMIT');
+      } catch (error) {
+        await db.execAsync('ROLLBACK');
+        throw error;
       }
 
       const template = await this.getById(id);
@@ -158,31 +168,50 @@ export class TemplateRepository extends BaseRepository {
     return this.execute(async (db) => {
       const now = this.now();
 
-      // Update template name if provided
-      if (data.name !== undefined) {
-        await db.runAsync(
-          'UPDATE templates SET name = ?, updated_at = ? WHERE id = ?',
-          [data.name, now, id]
-        );
-      }
+      // Use explicit transaction
+      await db.execAsync('BEGIN TRANSACTION');
 
-      // Update sections if provided
-      if (data.sections !== undefined) {
-        // Delete existing sections
-        await db.runAsync(
-          'DELETE FROM template_sections WHERE template_id = ?',
-          [id]
-        );
-
-        // Insert new sections
-        for (let i = 0; i < data.sections.length; i++) {
-          const section = data.sections[i];
+      try {
+        // Update template name if provided
+        if (data.name !== undefined) {
           await db.runAsync(
-            `INSERT INTO template_sections (id, template_id, name, order_index, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [section.id || this.generateId(), id, section.name, i, now, now]
+            'UPDATE templates SET name = ?, updated_at = ? WHERE id = ?',
+            [data.name, now, id]
           );
         }
+
+        // Update sections if provided
+        if (data.sections !== undefined) {
+          // First, delete recipe sections that reference this template's sections
+          await db.runAsync(
+            `DELETE FROM recipe_sections 
+             WHERE template_section_id IN (
+               SELECT id FROM template_sections WHERE template_id = ?
+             )`,
+            [id]
+          );
+
+          // Delete existing template sections
+          await db.runAsync(
+            'DELETE FROM template_sections WHERE template_id = ?',
+            [id]
+          );
+
+          // Insert new sections with fresh IDs
+          for (let i = 0; i < data.sections.length; i++) {
+            const section = data.sections[i];
+            await db.runAsync(
+              `INSERT INTO template_sections (id, template_id, name, order_index, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)`,
+              [this.generateId(), id, section.name, i, now, now]
+            );
+          }
+        }
+
+        await db.execAsync('COMMIT');
+      } catch (error) {
+        await db.execAsync('ROLLBACK');
+        throw error;
       }
 
       const template = await this.getById(id);

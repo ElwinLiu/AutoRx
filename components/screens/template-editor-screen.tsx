@@ -79,22 +79,38 @@ export function TemplateEditorScreen({ templateId }: TemplateEditorScreenProps) 
     setIsSaving(true);
 
     try {
-      const sectionData = sections.map((s) => ({
-        id: s.id.startsWith('inst-') && s.id.length > 10 ? undefined : s.id,
-        name: s.name.trim(),
-      }));
+      // Filter out empty sections and map to proper format
+      const validSections = sections
+        .filter((s) => s.name.trim())
+        .map((s) => ({
+          // Only pass ID if it's a real database ID (not a temporary client-side ID)
+          id: s.id.startsWith('inst-') ? undefined : s.id,
+          name: s.name.trim(),
+        }));
+
+      if (validSections.length === 0) {
+        console.warn('At least one non-empty section is required');
+        setIsSaving(false);
+        return;
+      }
+
+      console.log('Saving template:', {
+        templateId,
+        name: templateName.trim(),
+        sections: validSections,
+      });
 
       if (templateId) {
         // Update existing template
         await templateRepository.update(templateId, {
           name: templateName.trim(),
-          sections: sectionData,
+          sections: validSections,
         });
       } else {
         // Create new template
         await templateRepository.create({
           name: templateName.trim(),
-          sections: sectionData,
+          sections: validSections,
         });
       }
 

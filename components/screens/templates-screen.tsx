@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -42,6 +42,15 @@ export function TemplatesScreen() {
       fetchTemplates();
     }
   }, [isReady, fetchTemplates]);
+
+  // Refresh templates when screen comes into focus (e.g., after adding/editing)
+  useFocusEffect(
+    useCallback(() => {
+      if (isReady) {
+        fetchTemplates();
+      }
+    }, [isReady, fetchTemplates])
+  );
 
   const filteredTemplates = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

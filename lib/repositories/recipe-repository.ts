@@ -25,7 +25,9 @@ interface TemplateNameRow {
 
 interface IngredientRow {
   id: string;
-  text: string;
+  name: string;
+  amount: number | null;
+  unit: string | null;
 }
 
 interface SectionRow {
@@ -226,9 +228,9 @@ export class RecipeRepository extends BaseRepository {
         for (let i = 0; i < data.ingredients.length; i++) {
           const ing = data.ingredients[i];
           await db.runAsync(
-            `INSERT INTO recipe_ingredients (id, recipe_id, order_index, text)
-             VALUES (?, ?, ?, ?)`,
-            [this.generateId(), id, i, `${ing.amount} ${ing.unit} ${ing.item}`]
+            `INSERT INTO recipe_ingredients (id, recipe_id, order_index, name, amount, unit)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [this.generateId(), id, i, ing.item, ing.amount ?? null, ing.unit ?? null]
           );
         }
       }
@@ -379,17 +381,16 @@ export class RecipeRepository extends BaseRepository {
   private async getIngredientsForRecipe(recipeId: string): Promise<Ingredient[]> {
     const db = await this.getDb();
     const rows = await db.getAllAsync<IngredientRow>(
-      `SELECT id, text FROM recipe_ingredients WHERE recipe_id = ? ORDER BY order_index ASC`,
+      `SELECT id, name, amount, unit FROM recipe_ingredients WHERE recipe_id = ? ORDER BY order_index ASC`,
       [recipeId]
     );
 
-    return rows.map((row) => {
-      const parts = row.text.split(' ');
-      const amount = parseFloat(parts[0]) || 1;
-      const unit = parts[1] || '';
-      const item = parts.slice(2).join(' ') || row.text;
-      return { id: row.id, item, amount, unit };
-    });
+    return rows.map((row) => ({
+      id: row.id,
+      item: row.name,
+      amount: row.amount ?? 1,
+      unit: row.unit ?? '',
+    }));
   }
 
   private async getSectionsForRecipe(

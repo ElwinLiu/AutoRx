@@ -50,7 +50,9 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id TEXT PRIMARY KEY,
   recipe_id TEXT NOT NULL REFERENCES recipes(id),
   order_index INTEGER NOT NULL,
-  text TEXT NOT NULL
+  name TEXT NOT NULL,
+  amount REAL,
+  unit TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
@@ -136,6 +138,64 @@ async function runMigrations(db: SQLiteDatabase): Promise<void> {
     }
   } catch (error) {
     console.error('Migration error:', error);
+  }
+
+  // Migration: Update recipe_ingredients table to use structured columns
+  try {
+    const tableInfo = await db.getAllAsync<{ name: string }>(
+      "PRAGMA table_info(recipe_ingredients)"
+    );
+    const columnNames = tableInfo.map(col => col.name);
+
+    // Check if we need to migrate from old schema (has 'text' column, no 'name' column)
+    if (columnNames.includes('text') && !columnNames.includes('name')) {
+      // Drop temp table if exists from previous failed attempt
+      await db.execAsync(`DROP TABLE IF EXISTS recipe_ingredients_new;`);
+
+      // Create new table with correct schema (without FK constraint initially to avoid issues)
+      await db.execAsync(`
+        CREATE TABLE recipe_ingredients_new (
+          id TEXT PRIMARY KEY,
+          recipe_id TEXT NOT NULL,
+          order_index INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          amount REAL,
+          unit TEXT
+        );
+      `);
+
+      // Copy data from old table to new table
+      await db.execAsync(`
+        INSERT INTO recipe_ingredients_new (id, recipe_id, order_index, name, amount, unit)
+        SELECT id, recipe_id, order_index,
+          CASE
+            WHEN text LIKE '% % %' THEN substr(text, instr(substr(text, instr(text, ' ') + 1), ' ') + instr(text, ' ') + 1)
+            ELSE text
+          END as name,
+          CASE
+            WHEN text LIKE '% %' THEN CAST(substr(text, 1, instr(text, ' ') - 1) AS REAL)
+            ELSE NULL
+          END as amount,
+          CASE
+            WHEN text LIKE '% % %' THEN substr(substr(text, instr(text, ' ') + 1), 1, instr(substr(text, instr(text, ' ') + 1), ' ') - 1)
+            WHEN text LIKE '% %' THEN substr(text, instr(text, ' ') + 1)
+            ELSE NULL
+          END as unit
+        FROM recipe_ingredients;
+      `);
+
+      // Drop old table and rename new one
+      await db.execAsync(`DROP TABLE recipe_ingredients;`);
+      await db.execAsync(`ALTER TABLE recipe_ingredients_new RENAME TO recipe_ingredients;`);
+
+      // Recreate index
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
+          ON recipe_ingredients(recipe_id, order_index);
+      `);
+    }
+  } catch (error) {
+    console.error('Migration error for recipe_ingredients:', error);
   }
 }
 
