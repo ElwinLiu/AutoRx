@@ -109,3 +109,8 @@ export function getUnitCategory(unitId: string): string | undefined {
   const unit = getUnitById(unitId);
   return unit?.category;
 }
+
+// Check if a unit is convertible (exists in the conversion table)
+export function isUnitConvertible(unitId: string): boolean {
+  return unitId in CONVERSION_FACTORS;
+}

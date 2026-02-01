@@ -25,6 +25,7 @@ import { recipeRepository } from '@/lib/repositories';
 import { AIBottomSheet } from '@/components/ai/ai-bottom-sheet';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
 import { UnitConversionSheet } from '@/components/units/unit-conversion-sheet';
+import { isUnitConvertible } from '@/lib/units/constants';
 import type { Ingredient } from '@/types/models';
 
 const formatAmount = (value: number) => {
@@ -724,12 +725,7 @@ export function RecipeDetailScreen() {
         convertedIndicator: {
           ...typography.caption,
           color: colors.accent,
-          opacity: 0,
-          width: 0,
-        },
-        convertedIndicatorVisible: {
-          opacity: 0.7,
-          width: 16,
+          marginLeft: 4,
         },
         checkbox: {
           width: 26,
@@ -1059,13 +1055,19 @@ export function RecipeDetailScreen() {
                         <Pressable
                           onPress={() => handleIngredientPress(ingredient)}
                           style={styles.ingredientAmountArea}
+                          disabled={!isUnitConvertible(ingredient.unit)}
                         >
                           <Text style={[styles.ingredientAmount, checked && styles.ingredientAmountChecked]}>
                             {formatAmount(displayAmount)} {displayUnit}
                           </Text>
-                          <Text style={[styles.convertedIndicator, conversion && styles.convertedIndicatorVisible]}>
-                            ↻
-                          </Text>
+                          {isUnitConvertible(ingredient.unit) && (
+                            <Ionicons name="swap-horizontal" size={14} color={colors.accent} style={{ marginLeft: 4 }} />
+                          )}
+                          {conversion && (
+                            <Text style={styles.convertedIndicator}>
+                              ↻
+                            </Text>
+                          )}
                         </Pressable>
                       </View>
                     );
