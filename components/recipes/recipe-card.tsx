@@ -2,7 +2,6 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Haptics from 'expo-haptics';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { recipeRepository } from '@/lib/repositories';
@@ -27,7 +26,6 @@ function RecipeCardComponent({ recipe, onPress, onFavoriteToggle }: RecipeCardPr
 
   const handleToggleFavorite = useCallback(async (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const newFavorite = !isFavorite;
     setIsFavorite(newFavorite);

@@ -7,7 +7,6 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Haptics from 'expo-haptics';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 
@@ -48,8 +47,6 @@ export function AnimatedIconButton({
 
   const handlePressIn = () => {
     if (!animated) return;
-    // Trigger haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     scaleValue.value = withSpring(LIQUID_GLASS_CONFIG.scaleUp, {
       ...BUTTON_SPRING_CONFIG,
       damping: 12,

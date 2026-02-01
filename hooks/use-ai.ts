@@ -1,15 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getAISettings,
-  setApiKey,
+  setProviderApiKey,
+  removeProviderApiKey,
   setPrimaryModel,
   setSecondaryModel,
-  removeApiKey,
   clearAISettings,
+  getProviderApiKey,
   type ModelConfig,
   type AISettings,
-  RECOMMENDED_MODELS,
+  type ProviderId,
+  PROVIDERS,
 } from '@/lib/ai/settings';
+import {
+  verifyProviderApiKey,
+  fetchModelsForProvider,
+  convertFetchedModelToConfig,
+  type FetchedModel,
+  type ProviderVerificationResult,
+} from '@/lib/ai/model-fetcher';
 import {
   completeChat,
   isAIConfigured,
@@ -25,11 +34,19 @@ type UseAIReturn = {
   isConfigured: boolean;
   error: string | null;
 
+  // Provider management
+  saveProviderApiKey: (provider: ProviderId, apiKey: string) => Promise<void>;
+  deleteProviderApiKey: (provider: ProviderId) => Promise<void>;
+  verifyProviderKey: (provider: ProviderId, apiKey: string) => Promise<ProviderVerificationResult>;
+  fetchProviderModels: (provider: ProviderId) => Promise<FetchedModel[]>;
+
   // Settings management
+  /** @deprecated Use saveProviderApiKey instead */
   saveApiKey: (apiKey: string) => Promise<void>;
+  /** @deprecated Use deleteProviderApiKey instead */
+  deleteApiKey: () => Promise<void>;
   savePrimaryModel: (config: ModelConfig) => Promise<void>;
   saveSecondaryModel: (config: ModelConfig) => Promise<void>;
-  deleteApiKey: () => Promise<void>;
   clearAllSettings: () => Promise<void>;
   refreshSettings: () => Promise<void>;
 
@@ -37,7 +54,7 @@ type UseAIReturn = {
   chat: (options: ChatCompletionOptions) => Promise<ChatCompletionResult>;
 
   // Constants
-  recommendedModels: typeof RECOMMENDED_MODELS;
+  providers: typeof PROVIDERS;
 };
 
 export function useAI(): UseAIReturn {
@@ -67,10 +84,11 @@ export function useAI(): UseAIReturn {
     loadSettings();
   }, [loadSettings]);
 
-  const saveApiKey = useCallback(async (apiKey: string) => {
+  // New multi-provider methods
+  const saveProviderApiKey = useCallback(async (provider: ProviderId, apiKey: string) => {
     try {
       setError(null);
-      await setApiKey(apiKey);
+      await setProviderApiKey(provider, apiKey);
       await loadSettings();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save API key';
@@ -78,6 +96,53 @@ export function useAI(): UseAIReturn {
       throw err;
     }
   }, [loadSettings]);
+
+  const deleteProviderApiKey = useCallback(async (provider: ProviderId) => {
+    try {
+      setError(null);
+      await removeProviderApiKey(provider);
+      await loadSettings();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete API key';
+      setError(message);
+      throw err;
+    }
+  }, [loadSettings]);
+
+  const verifyProviderKey = useCallback(async (provider: ProviderId, apiKey: string) => {
+    try {
+      setError(null);
+      return await verifyProviderApiKey(provider, apiKey);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to verify API key';
+      setError(message);
+      return { valid: false, error: message } as ProviderVerificationResult;
+    }
+  }, []);
+
+  const fetchProviderModels = useCallback(async (provider: ProviderId) => {
+    try {
+      setError(null);
+      const apiKey = await getProviderApiKey(provider);
+      if (!apiKey) {
+        return [];
+      }
+      return await fetchModelsForProvider(provider, apiKey);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch models';
+      setError(message);
+      return [];
+    }
+  }, []);
+
+  // Legacy methods for backwards compatibility
+  const saveApiKey = useCallback(async (apiKey: string) => {
+    await saveProviderApiKey('openai', apiKey);
+  }, [saveProviderApiKey]);
+
+  const deleteApiKey = useCallback(async () => {
+    await deleteProviderApiKey('openai');
+  }, [deleteProviderApiKey]);
 
   const savePrimaryModel = useCallback(async (config: ModelConfig) => {
     try {
@@ -98,18 +163,6 @@ export function useAI(): UseAIReturn {
       await loadSettings();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save secondary model';
-      setError(message);
-      throw err;
-    }
-  }, [loadSettings]);
-
-  const deleteApiKey = useCallback(async () => {
-    try {
-      setError(null);
-      await removeApiKey();
-      await loadSettings();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete API key';
       setError(message);
       throw err;
     }
@@ -154,16 +207,20 @@ export function useAI(): UseAIReturn {
     isLoading,
     isConfigured,
     error,
+    saveProviderApiKey,
+    deleteProviderApiKey,
+    verifyProviderKey,
+    fetchProviderModels,
     saveApiKey,
+    deleteApiKey,
     savePrimaryModel,
     saveSecondaryModel,
-    deleteApiKey,
     clearAllSettings,
     refreshSettings,
     chat,
-    recommendedModels: RECOMMENDED_MODELS,
+    providers: PROVIDERS,
   };
 }
 
-export type { Message, ChatCompletionOptions, ChatCompletionResult, ModelConfig, AISettings };
-export { AIProviderError, RECOMMENDED_MODELS };
+export type { Message, ChatCompletionOptions, ChatCompletionResult, ModelConfig, AISettings, ProviderId, FetchedModel, ProviderVerificationResult };
+export { AIProviderError, PROVIDERS };

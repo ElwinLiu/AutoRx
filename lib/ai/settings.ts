@@ -1,48 +1,109 @@
 import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEYS = {
-  API_KEY: 'ai_api_key',
+  PROVIDER_KEYS: 'ai_provider_keys',
   PRIMARY_MODEL: 'ai_primary_model',
   SECONDARY_MODEL: 'ai_secondary_model',
 } as const;
 
+export type ProviderId = 'openai' | 'openrouter';
+
+export type ProviderConfig = {
+  id: ProviderId;
+  name: string;
+  description: string;
+  iconUrl?: string;
+  baseUrl: string;
+  requiresApiKey: boolean;
+  supportsCustomBaseUrl: boolean;
+};
+
 export type ModelConfig = {
-  provider: 'openai' | 'anthropic' | 'google' | 'custom';
+  provider: ProviderId;
   modelId: string;
-  baseUrl?: string;
+  name: string;
+  description?: string;
+  contextWindow?: number;
 };
 
 export type AISettings = {
-  apiKey: string | null;
+  providerKeys: Record<ProviderId, string | null>;
   primaryModel: ModelConfig | null;
   secondaryModel: ModelConfig | null;
 };
 
+export type StoredProviderKeys = Partial<Record<ProviderId, string>>;
+
+export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
+  openai: {
+    id: 'openai',
+    name: 'OpenAI',
+    description: 'GPT-4o, GPT-4o Mini, and more',
+    baseUrl: 'https://api.openai.com/v1',
+    requiresApiKey: true,
+    supportsCustomBaseUrl: false,
+  },
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    description: 'Access to 200+ models from various providers',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    requiresApiKey: true,
+    supportsCustomBaseUrl: false,
+  },
+};
+
+export async function getProviderKeys(): Promise<StoredProviderKeys> {
+  try {
+    const json = await SecureStore.getItemAsync(STORAGE_KEYS.PROVIDER_KEYS);
+    return json ? (JSON.parse(json) as StoredProviderKeys) : {};
+  } catch (error) {
+    console.error('Failed to get provider keys:', error);
+    return {};
+  }
+}
+
+export async function setProviderApiKey(provider: ProviderId, apiKey: string): Promise<void> {
+  try {
+    const keys = await getProviderKeys();
+    keys[provider] = apiKey;
+    await SecureStore.setItemAsync(STORAGE_KEYS.PROVIDER_KEYS, JSON.stringify(keys));
+  } catch (error) {
+    console.error('Failed to set provider API key:', error);
+    throw error;
+  }
+}
+
+export async function removeProviderApiKey(provider: ProviderId): Promise<void> {
+  try {
+    const keys = await getProviderKeys();
+    delete keys[provider];
+    await SecureStore.setItemAsync(STORAGE_KEYS.PROVIDER_KEYS, JSON.stringify(keys));
+  } catch (error) {
+    console.error('Failed to remove provider API key:', error);
+    throw error;
+  }
+}
+
+export async function getProviderApiKey(provider: ProviderId): Promise<string | null> {
+  const keys = await getProviderKeys();
+  return keys[provider] ?? null;
+}
+
+/** @deprecated Use getProviderKeys instead */
 export async function getApiKey(): Promise<string | null> {
-  try {
-    return await SecureStore.getItemAsync(STORAGE_KEYS.API_KEY);
-  } catch (error) {
-    console.error('Failed to get API key:', error);
-    return null;
-  }
+  const keys = await getProviderKeys();
+  return keys.openai ?? keys.openrouter ?? null;
 }
 
+/** @deprecated Use setProviderApiKey instead */
 export async function setApiKey(apiKey: string): Promise<void> {
-  try {
-    await SecureStore.setItemAsync(STORAGE_KEYS.API_KEY, apiKey);
-  } catch (error) {
-    console.error('Failed to set API key:', error);
-    throw error;
-  }
+  await setProviderApiKey('openai', apiKey);
 }
 
+/** @deprecated Use removeProviderApiKey instead */
 export async function removeApiKey(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.API_KEY);
-  } catch (error) {
-    console.error('Failed to remove API key:', error);
-    throw error;
-  }
+  await removeProviderApiKey('openai');
 }
 
 export async function getPrimaryModel(): Promise<ModelConfig | null> {
@@ -90,14 +151,17 @@ export async function setSecondaryModel(config: ModelConfig): Promise<void> {
 }
 
 export async function getAISettings(): Promise<AISettings> {
-  const [apiKey, primaryModel, secondaryModel] = await Promise.all([
-    getApiKey(),
+  const [providerKeys, primaryModel, secondaryModel] = await Promise.all([
+    getProviderKeys(),
     getPrimaryModel(),
     getSecondaryModel(),
   ]);
 
   return {
-    apiKey,
+    providerKeys: {
+      openai: providerKeys.openai ?? null,
+      openrouter: providerKeys.openrouter ?? null,
+    },
     primaryModel,
     secondaryModel,
   };
@@ -105,23 +169,8 @@ export async function getAISettings(): Promise<AISettings> {
 
 export async function clearAISettings(): Promise<void> {
   await Promise.all([
-    SecureStore.deleteItemAsync(STORAGE_KEYS.API_KEY),
+    SecureStore.deleteItemAsync(STORAGE_KEYS.PROVIDER_KEYS),
     SecureStore.deleteItemAsync(STORAGE_KEYS.PRIMARY_MODEL),
     SecureStore.deleteItemAsync(STORAGE_KEYS.SECONDARY_MODEL),
   ]);
 }
-
-export const RECOMMENDED_MODELS: { primary: ModelConfig[]; secondary: ModelConfig[] } =
-  {
-    primary: [
-      { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022' },
-      { provider: 'openai', modelId: 'gpt-4o' },
-      { provider: 'openai', modelId: 'gpt-4o-mini' },
-      { provider: 'google', modelId: 'gemini-1.5-pro' },
-    ],
-    secondary: [
-      { provider: 'openai', modelId: 'gpt-4o-mini' },
-      { provider: 'anthropic', modelId: 'claude-3-5-haiku-20241022' },
-      { provider: 'google', modelId: 'gemini-1.5-flash' },
-    ],
-  };
