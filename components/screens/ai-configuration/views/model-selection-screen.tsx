@@ -12,20 +12,64 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { PROVIDERS } from '@/lib/ai/settings';
+import { MODEL_ROLES, type ModelRole } from '@/lib/ai/constants';
 import type { ProviderId, FetchedModel } from '@/hooks/use-ai';
 
 type ModelSelectionScreenProps = {
   models: (FetchedModel & { provider: ProviderId })[];
   isLoading: boolean;
   onSelect: (model: FetchedModel, provider: ProviderId) => void;
+  primaryModel?: { provider: ProviderId; modelId: string; name: string } | null;
+  secondaryModel?: { provider: ProviderId; modelId: string; name: string } | null;
 };
+
+type ModelItem = FetchedModel & { provider: ProviderId };
 
 type ModelSection = {
   title: string;
   provider: ProviderId;
   isFirst: boolean;
-  data: (FetchedModel & { provider: ProviderId })[];
+  data: ModelItem[];
 };
+
+
+
+function getModelRole(
+  model: ModelItem,
+  primaryModel: ModelSelectionScreenProps['primaryModel'],
+  secondaryModel: ModelSelectionScreenProps['secondaryModel']
+): ModelRole {
+  const isPrimary =
+    primaryModel &&
+    primaryModel.provider === model.provider &&
+    primaryModel.modelId === model.id;
+  if (isPrimary) return MODEL_ROLES.PRIMARY;
+
+  const isSecondary =
+    secondaryModel &&
+    secondaryModel.provider === model.provider &&
+    secondaryModel.modelId === model.id;
+  if (isSecondary) return MODEL_ROLES.SECONDARY;
+
+  return null;
+}
+
+function sortModelsByRole(
+  models: ModelItem[],
+  primaryModel: ModelSelectionScreenProps['primaryModel'],
+  secondaryModel: ModelSelectionScreenProps['secondaryModel']
+): ModelItem[] {
+  return [...models].sort((a, b) => {
+    const roleA = getModelRole(a, primaryModel, secondaryModel);
+    const roleB = getModelRole(b, primaryModel, secondaryModel);
+
+    if (roleA === MODEL_ROLES.PRIMARY) return -1;
+    if (roleB === MODEL_ROLES.PRIMARY) return 1;
+    if (roleA === MODEL_ROLES.SECONDARY) return -1;
+    if (roleB === MODEL_ROLES.SECONDARY) return 1;
+    return 0;
+  });
+}
 
 /**
  * ModelSelectionScreen - Full-screen model picker with search
@@ -39,6 +83,8 @@ export function ModelSelectionScreen({
   models,
   isLoading,
   onSelect,
+  primaryModel,
+  secondaryModel,
 }: ModelSelectionScreenProps) {
   const { colors, spacing, typography, radius } = useAppTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,12 +130,17 @@ export function ModelSelectionScreen({
   }, [providerFilteredModels, searchQuery]);
 
   const sections = useMemo<ModelSection[]>(() => {
-    const groups: Record<ProviderId, (FetchedModel & { provider: ProviderId })[]> = {
+    const groups: Record<ProviderId, ModelItem[]> = {
       openai: [],
       openrouter: [],
     };
     for (const model of filteredModels) {
       groups[model.provider].push(model);
+    }
+
+    // Sort each provider's models: primary first, then secondary, then others
+    for (const provider of Object.keys(groups) as ProviderId[]) {
+      groups[provider] = sortModelsByRole(groups[provider], primaryModel, secondaryModel);
     }
 
     const orderedProviders = (Object.keys(PROVIDERS) as ProviderId[]).filter(
@@ -102,18 +153,22 @@ export function ModelSelectionScreen({
       isFirst: index === 0,
       data: groups[provider],
     }));
-  }, [filteredModels]);
+  }, [filteredModels, primaryModel, secondaryModel]);
 
   const renderItem = useCallback(
-    ({ item, index, section }: { item: FetchedModel & { provider: ProviderId }; index: number; section: ModelSection }) => (
-      <ModelListItem
-        model={item}
-        isFirst={index === 0}
-        isLast={index === section.data.length - 1}
-        onSelect={() => onSelect(item, section.provider)}
-      />
-    ),
-    [onSelect]
+    ({ item, index, section }: { item: ModelItem; index: number; section: ModelSection }) => {
+      const role = getModelRole(item, primaryModel, secondaryModel);
+      return (
+        <ModelListItem
+          model={item}
+          role={role}
+          isFirst={index === 0}
+          isLast={index === section.data.length - 1}
+          onSelect={() => onSelect(item, section.provider)}
+        />
+      );
+    },
+    [onSelect, primaryModel, secondaryModel]
   );
 
   const renderSectionHeader = useCallback(
@@ -348,16 +403,21 @@ export function ModelSelectionScreen({
  */
 function ModelListItem({
   model,
+  role,
   isFirst,
   isLast,
   onSelect,
 }: {
-  model: FetchedModel & { provider: ProviderId };
+  model: ModelItem;
+  role: ModelRole;
   isFirst: boolean;
   isLast: boolean;
   onSelect: () => void;
 }) {
   const { colors, spacing, typography, radius } = useAppTheme();
+
+  const roleLabel = role === MODEL_ROLES.PRIMARY ? 'Primary' : role === MODEL_ROLES.SECONDARY ? 'Secondary' : null;
+  const roleColor = role === MODEL_ROLES.PRIMARY ? colors.accent : colors.textSecondary;
 
   return (
     <Pressable
@@ -383,9 +443,32 @@ function ModelListItem({
       })}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
-          {model.name}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
+            {model.name}
+          </Text>
+          {roleLabel && (
+            <View
+              style={{
+                backgroundColor: role === MODEL_ROLES.PRIMARY ? `${colors.accent}20` : colors.surfaceSecondary,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs / 2,
+                borderRadius: radius.sm,
+              }}
+            >
+              <Text
+                style={{
+                  ...typography.caption,
+                  color: roleColor,
+                  fontWeight: '600',
+                  fontSize: 11,
+                }}
+              >
+                {roleLabel}
+              </Text>
+            </View>
+          )}
+        </View>
         {model.description && (
           <Text
             style={{

@@ -50,6 +50,7 @@ export function AIConfigurationScreen() {
     selectModel,
     assignModelRole,
     selectedModel,
+    settings,
   } = aiConfig;
 
   const styles = React.useMemo(
@@ -147,6 +148,8 @@ export function AIConfigurationScreen() {
           models={allAvailableModels}
           isLoading={isLoading}
           onSelect={selectModel}
+          primaryModel={settings?.primaryModel}
+          secondaryModel={settings?.secondaryModel}
         />
       )}
 

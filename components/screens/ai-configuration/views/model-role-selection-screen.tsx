@@ -4,13 +4,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { PROVIDERS } from '@/lib/ai/settings';
+import { MODEL_ROLES, type ModelRole } from '@/lib/ai/constants';
 import type { ProviderId, FetchedModel } from '@/hooks/use-ai';
 
 type ModelRoleSelectionScreenProps = {
   model: FetchedModel;
   provider: ProviderId;
   isSaving: boolean;
-  onAssignRole: (role: 'primary' | 'secondary') => Promise<void>;
+  onAssignRole: (role: ModelRole) => Promise<void>;
 };
 
 /**
@@ -28,9 +29,9 @@ export function ModelRoleSelectionScreen({
   onAssignRole,
 }: ModelRoleSelectionScreenProps) {
   const { colors, spacing, typography, radius } = useAppTheme();
-  const [selectedRole, setSelectedRole] = useState<'primary' | 'secondary' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<ModelRole | null>(null);
 
-  const handleAssign = async (role: 'primary' | 'secondary') => {
+  const handleAssign = async (role: ModelRole) => {
     setSelectedRole(role);
     await onAssignRole(role);
   };
@@ -95,26 +96,26 @@ export function ModelRoleSelectionScreen({
 
         {/* Primary Role Option */}
         <RoleOption
-          role="primary"
+          role={MODEL_ROLES.PRIMARY}
           title="Primary Model"
           description="Used for high-quality, complex tasks"
           icon="sparkles"
           iconColor={colors.accent}
-          isSelected={selectedRole === 'primary'}
-          isSaving={isSaving && selectedRole === 'primary'}
-          onSelect={() => handleAssign('primary')}
+          isSelected={selectedRole === MODEL_ROLES.PRIMARY}
+          isSaving={isSaving && selectedRole === MODEL_ROLES.PRIMARY}
+          onSelect={() => handleAssign(MODEL_ROLES.PRIMARY)}
         />
 
         {/* Secondary Role Option */}
         <RoleOption
-          role="secondary"
+          role={MODEL_ROLES.SECONDARY}
           title="Secondary Model"
           description="Used for faster, simpler tasks"
           icon="flash"
           iconColor={colors.warning}
-          isSelected={selectedRole === 'secondary'}
-          isSaving={isSaving && selectedRole === 'secondary'}
-          onSelect={() => handleAssign('secondary')}
+          isSelected={selectedRole === MODEL_ROLES.SECONDARY}
+          isSaving={isSaving && selectedRole === MODEL_ROLES.SECONDARY}
+          onSelect={() => handleAssign(MODEL_ROLES.SECONDARY)}
         />
       </View>
     </View>
@@ -133,7 +134,7 @@ function RoleOption({
   isSaving,
   onSelect,
 }: {
-  role: 'primary' | 'secondary';
+  role: ModelRole;
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;

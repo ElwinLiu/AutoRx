@@ -1,11 +1,13 @@
+import OpenAI from 'openai';
+
 import {
   getProviderApiKey,
   getPrimaryModel,
   getSecondaryModel,
   type ModelConfig,
-  type ProviderId,
   PROVIDERS,
 } from './settings';
+import { MODEL_ROLES, type ModelRole } from './constants';
 
 export type Message = {
   role: 'system' | 'user' | 'assistant';
@@ -16,7 +18,10 @@ export type ChatCompletionOptions = {
   messages: Message[];
   temperature?: number;
   maxTokens?: number;
+  /** @deprecated Use modelRole instead */
   useSecondaryModel?: boolean;
+  /** Preferred way to specify which model to use */
+  modelRole?: ModelRole;
 };
 
 export type ChatCompletionResult = {
@@ -44,44 +49,47 @@ async function makeOpenAICompatibleRequest(
   config: ModelConfig,
   options: ChatCompletionOptions
 ): Promise<ChatCompletionResult> {
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.modelId,
-      messages: options.messages,
-      temperature: options.temperature ?? 0.7,
-      max_tokens: options.maxTokens,
-    }),
+  const client = new OpenAI({
+    apiKey,
+    baseURL: baseUrl,
+    dangerouslyAllowBrowser: true,
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new AIProviderError(
-      `API error: ${response.status} - ${error}`,
-      'API_ERROR'
-    );
+  try {
+    const completion = await client.chat.completions.create({
+      model: config.modelId,
+      messages: options.messages.map((m) => ({
+        role: m.role as 'system' | 'user' | 'assistant',
+        content: m.content,
+      })),
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens,
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new AIProviderError('Invalid response from API', 'INVALID_RESPONSE');
+    }
+
+    return {
+      content,
+      usage: completion.usage
+        ? {
+            promptTokens: completion.usage.prompt_tokens,
+            completionTokens: completion.usage.completion_tokens,
+            totalTokens: completion.usage.total_tokens,
+          }
+        : undefined,
+    };
+  } catch (error) {
+    if (error instanceof OpenAI.APIError) {
+      throw new AIProviderError(
+        `API error: ${error.status} - ${error.message}`,
+        'API_ERROR'
+      );
+    }
+    throw error;
   }
-
-  const data = await response.json();
-
-  if (!data.choices?.[0]?.message?.content) {
-    throw new AIProviderError('Invalid response from API', 'INVALID_RESPONSE');
-  }
-
-  return {
-    content: data.choices[0].message.content,
-    usage: data.usage
-      ? {
-          promptTokens: data.usage.prompt_tokens,
-          completionTokens: data.usage.completion_tokens,
-          totalTokens: data.usage.total_tokens,
-        }
-      : undefined,
-  };
 }
 
 export async function completeChat(
@@ -92,12 +100,13 @@ export async function completeChat(
     getSecondaryModel(),
   ]);
 
-  const modelConfig = options.useSecondaryModel ? secondaryModel : primaryModel;
+  // Determine which model role to use (prefer modelRole, fallback to useSecondaryModel)
+  const modelRole = options.modelRole ?? (options.useSecondaryModel ? MODEL_ROLES.SECONDARY : MODEL_ROLES.PRIMARY);
+  const modelConfig = modelRole === MODEL_ROLES.SECONDARY ? secondaryModel : primaryModel;
 
   if (!modelConfig) {
-    const modelType = options.useSecondaryModel ? 'secondary' : 'primary';
     throw new AIProviderError(
-      `No ${modelType} model configured. Please set up your model in settings.`,
+      `No ${modelRole} model configured. Please set up your model in settings.`,
       'NO_MODEL'
     );
   }

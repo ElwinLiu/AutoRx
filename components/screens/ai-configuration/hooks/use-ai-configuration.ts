@@ -7,6 +7,7 @@ import {
   type AISettings,
   PROVIDERS,
 } from '@/hooks/use-ai';
+import { MODEL_ROLES, type ModelRole } from '@/lib/ai/constants';
 
 export type AIConfigSection = 'main' | 'modelSelection' | 'modelRoleSelection';
 
@@ -40,7 +41,7 @@ export type UseAIConfigurationReturn = {
   verifyProvider: (provider: ProviderId) => Promise<void>;
   removeProvider: (provider: ProviderId) => Promise<void>;
   selectModel: (model: FetchedModel, provider: ProviderId) => void;
-  assignModelRole: (role: 'primary' | 'secondary') => Promise<void>;
+  assignModelRole: (role: ModelRole) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -193,7 +194,7 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
   }, []);
 
   const assignModelRole = useCallback(
-    async (role: 'primary' | 'secondary') => {
+    async (role: ModelRole) => {
       if (!selectedModel) return;
 
       const modelConfig = {
@@ -206,7 +207,7 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
 
       setIsSaving(true);
       try {
-        if (role === 'primary') {
+        if (role === MODEL_ROLES.PRIMARY) {
           await savePrimaryModel(modelConfig);
         } else {
           await saveSecondaryModel(modelConfig);

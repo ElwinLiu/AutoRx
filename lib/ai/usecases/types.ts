@@ -1,12 +1,7 @@
 import { type ChatCompletionOptions, type ChatCompletionResult } from '../provider';
+import { type ModelRole } from '../constants';
 
-/**
- * Cost tier for AI use cases
- * - cheap: Use secondary model (fast, cost-effective)
- * - standard: Use primary model (balanced quality/cost)
- * - premium: Use primary model with higher quality settings
- */
-export type CostTier = 'cheap' | 'standard' | 'premium';
+export type { ModelRole };
 
 /**
  * Definition of an AI use case
@@ -18,8 +13,8 @@ export type AIUseCase<TInput, TOutput> = {
   /** Human-readable description */
   description: string;
 
-  /** Cost tier determines which model to use */
-  costTier: CostTier;
+  /** Which model role to use: 'primary' or 'secondary' */
+  modelRole: ModelRole;
 
   /** System prompt for this use case */
   systemPrompt: string;

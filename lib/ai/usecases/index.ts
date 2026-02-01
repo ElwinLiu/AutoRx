@@ -1,9 +1,10 @@
 import { completeChat, type ChatCompletionResult } from '../provider';
-import { type AIUseCase, type UseCaseResult, type CostTier } from './types';
+import { MODEL_ROLES } from '../constants';
+import { type AIUseCase, type UseCaseResult, type ModelRole } from './types';
 
 /**
  * Execute an AI use case
- * Automatically selects the appropriate model based on cost tier
+ * Uses the specified model role (primary or secondary)
  */
 export async function executeUseCase<TInput, TOutput>(
   useCase: AIUseCase<TInput, TOutput>,
@@ -16,7 +17,7 @@ export async function executeUseCase<TInput, TOutput>(
       messages: [{ role: 'system', content: useCase.systemPrompt }, ...messages],
       temperature: useCase.temperature,
       maxTokens: useCase.maxTokens,
-      useSecondaryModel: useCase.costTier === 'cheap',
+      modelRole: useCase.modelRole,
     });
 
     const data = useCase.parseResponse(result);
