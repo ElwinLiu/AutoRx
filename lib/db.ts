@@ -32,7 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_template_sections_order
 CREATE TABLE IF NOT EXISTS recipes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  template_name TEXT,
   cook_time_min INTEGER,
   servings REAL,
   favorite INTEGER NOT NULL DEFAULT 0,
@@ -51,25 +50,23 @@ CREATE INDEX IF NOT EXISTS idx_recipes_fav_updated ON recipes(favorite, updated_
 CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id TEXT PRIMARY KEY,
   recipe_id TEXT NOT NULL REFERENCES recipes(id),
-  order_index INTEGER NOT NULL,
   name TEXT NOT NULL,
   amount REAL,
   unit TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
-  ON recipe_ingredients(recipe_id, order_index);
+  ON recipe_ingredients(recipe_id);
 
 CREATE TABLE IF NOT EXISTS recipe_sections (
   id TEXT PRIMARY KEY,
   recipe_id TEXT NOT NULL REFERENCES recipes(id),
   name TEXT NOT NULL,
-  order_index INTEGER NOT NULL,
   content TEXT NOT NULL DEFAULT '',
   updated_at INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_sections_recipe ON recipe_sections(recipe_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_sections_recipe ON recipe_sections(recipe_id);
 
 CREATE TABLE IF NOT EXISTS tags (
   id TEXT PRIMARY KEY,
@@ -87,17 +84,6 @@ CREATE TABLE IF NOT EXISTS recipe_tags (
 
 CREATE INDEX IF NOT EXISTS idx_recipe_tags_recipe ON recipe_tags(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_id);
-
-CREATE TABLE IF NOT EXISTS imports (
-  id TEXT PRIMARY KEY,
-  url TEXT NOT NULL,
-  status TEXT NOT NULL,
-  error_text TEXT,
-  template_id TEXT REFERENCES templates(id),
-  recipe_id TEXT REFERENCES recipes(id),
-  created_at INTEGER NOT NULL,
-  finished_at INTEGER
-);
 
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
@@ -154,8 +140,8 @@ async function migrateRecipesTable(db: SQLiteDatabase): Promise<void> {
     const hasTemplateId = columnNames.includes('template_id');
     const hasTemplateName = columnNames.includes('template_name');
 
-    // Already on the new schema
-    if (!hasTemplateId && hasTemplateName) {
+    // Already on the new schema (no template_id, no template_name)
+    if (!hasTemplateId && !hasTemplateName) {
       // Ensure image columns exist (safety for older installs)
       const missingImages = ['image_url', 'image_width', 'image_height'].filter(
         (name) => !columnNames.includes(name)
@@ -173,7 +159,6 @@ async function migrateRecipesTable(db: SQLiteDatabase): Promise<void> {
       CREATE TABLE recipes_new (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        template_name TEXT,
         cook_time_min INTEGER,
         servings REAL,
         favorite INTEGER NOT NULL DEFAULT 0,
@@ -192,28 +177,15 @@ async function migrateRecipesTable(db: SQLiteDatabase): Promise<void> {
     const imageWidthExpr = columnNames.includes('image_width') ? 'r.image_width' : 'NULL';
     const imageHeightExpr = columnNames.includes('image_height') ? 'r.image_height' : 'NULL';
 
-    let templateNameExpr = 'NULL';
-    let joinClause = '';
-    if (hasTemplateId && hasTemplateName) {
-      templateNameExpr = 'COALESCE(r.template_name, t.name)';
-      joinClause = 'LEFT JOIN templates t ON t.id = r.template_id';
-    } else if (hasTemplateId) {
-      templateNameExpr = 't.name';
-      joinClause = 'LEFT JOIN templates t ON t.id = r.template_id';
-    } else if (hasTemplateName) {
-      templateNameExpr = 'r.template_name';
-    }
-
     await db.execAsync(`
       INSERT INTO recipes_new (
-        id, name, template_name, cook_time_min, servings, favorite,
+        id, name, cook_time_min, servings, favorite,
         source_url, image_url, image_width, image_height,
         created_at, updated_at, deleted_at
       )
       SELECT
         r.id,
         r.name,
-        ${templateNameExpr} AS template_name,
         r.cook_time_min,
         r.servings,
         r.favorite,
@@ -224,8 +196,7 @@ async function migrateRecipesTable(db: SQLiteDatabase): Promise<void> {
         r.created_at,
         r.updated_at,
         r.deleted_at
-      FROM recipes r
-      ${joinClause};
+      FROM recipes r;
     `);
 
     await db.execAsync('DROP TABLE recipes;');
@@ -241,10 +212,10 @@ async function migrateRecipeSectionsTable(db: SQLiteDatabase): Promise<void> {
     if (columnNames.length === 0) return;
 
     const hasTemplateSectionId = columnNames.includes('template_section_id');
-    const hasName = columnNames.includes('name');
     const hasOrderIndex = columnNames.includes('order_index');
 
-    if (!hasTemplateSectionId && hasName && hasOrderIndex) {
+    // Already on the new schema (no template_section_id, no order_index)
+    if (!hasTemplateSectionId && !hasOrderIndex) {
       return;
     }
 
@@ -254,7 +225,6 @@ async function migrateRecipeSectionsTable(db: SQLiteDatabase): Promise<void> {
         id TEXT PRIMARY KEY,
         recipe_id TEXT NOT NULL REFERENCES recipes(id),
         name TEXT NOT NULL,
-        order_index INTEGER NOT NULL,
         content TEXT NOT NULL DEFAULT '',
         updated_at INTEGER NOT NULL
       );
@@ -262,12 +232,11 @@ async function migrateRecipeSectionsTable(db: SQLiteDatabase): Promise<void> {
 
     if (hasTemplateSectionId) {
       await db.execAsync(`
-        INSERT INTO recipe_sections_new (id, recipe_id, name, order_index, content, updated_at)
+        INSERT INTO recipe_sections_new (id, recipe_id, name, content, updated_at)
         SELECT
           rs.id,
           rs.recipe_id,
           COALESCE(ts.name, 'Instructions'),
-          COALESCE(ts.order_index, 0),
           rs.content,
           rs.updated_at
         FROM recipe_sections rs
@@ -275,8 +244,8 @@ async function migrateRecipeSectionsTable(db: SQLiteDatabase): Promise<void> {
       `);
     } else {
       await db.execAsync(`
-        INSERT INTO recipe_sections_new (id, recipe_id, name, order_index, content, updated_at)
-        SELECT id, recipe_id, name, order_index, content, updated_at
+        INSERT INTO recipe_sections_new (id, recipe_id, name, content, updated_at)
+        SELECT id, recipe_id, name, content, updated_at
         FROM recipe_sections;
       `);
     }
@@ -291,28 +260,35 @@ async function migrateRecipeSectionsTable(db: SQLiteDatabase): Promise<void> {
 async function migrateRecipeIngredientsTable(db: SQLiteDatabase): Promise<void> {
   try {
     const columnNames = await getTableColumns(db, 'recipe_ingredients');
+    if (columnNames.length === 0) return;
 
-    // Check if we need to migrate from old schema (has 'text' column, no 'name' column)
-    if (columnNames.includes('text') && !columnNames.includes('name')) {
-      // Drop temp table if exists from previous failed attempt
-      await db.execAsync(`DROP TABLE IF EXISTS recipe_ingredients_new;`);
+    const hasTextColumn = columnNames.includes('text');
+    const hasOrderIndex = columnNames.includes('order_index');
 
-      // Create new table with correct schema (without FK constraint initially to avoid issues)
+    // Already on the new schema (no text column, no order_index)
+    if (!hasTextColumn && !hasOrderIndex) {
+      return;
+    }
+
+    // Drop temp table if exists from previous failed attempt
+    await db.execAsync(`DROP TABLE IF EXISTS recipe_ingredients_new;`);
+
+    // Create new table with correct schema (without FK constraint initially to avoid issues)
+    await db.execAsync(`
+      CREATE TABLE recipe_ingredients_new (
+        id TEXT PRIMARY KEY,
+        recipe_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        amount REAL,
+        unit TEXT
+      );
+    `);
+
+    if (hasTextColumn) {
+      // Migrate from old schema with text column
       await db.execAsync(`
-        CREATE TABLE recipe_ingredients_new (
-          id TEXT PRIMARY KEY,
-          recipe_id TEXT NOT NULL,
-          order_index INTEGER NOT NULL,
-          name TEXT NOT NULL,
-          amount REAL,
-          unit TEXT
-        );
-      `);
-
-      // Copy data from old table to new table
-      await db.execAsync(`
-        INSERT INTO recipe_ingredients_new (id, recipe_id, order_index, name, amount, unit)
-        SELECT id, recipe_id, order_index,
+        INSERT INTO recipe_ingredients_new (id, recipe_id, name, amount, unit)
+        SELECT id, recipe_id,
           CASE
             WHEN text LIKE '% % %' THEN substr(text, instr(substr(text, instr(text, ' ') + 1), ' ') + instr(text, ' ') + 1)
             ELSE text
@@ -328,11 +304,18 @@ async function migrateRecipeIngredientsTable(db: SQLiteDatabase): Promise<void> 
           END as unit
         FROM recipe_ingredients;
       `);
-
-      // Drop old table and rename new one
-      await db.execAsync(`DROP TABLE recipe_ingredients;`);
-      await db.execAsync(`ALTER TABLE recipe_ingredients_new RENAME TO recipe_ingredients;`);
+    } else {
+      // Just remove order_index
+      await db.execAsync(`
+        INSERT INTO recipe_ingredients_new (id, recipe_id, name, amount, unit)
+        SELECT id, recipe_id, name, amount, unit
+        FROM recipe_ingredients;
+      `);
     }
+
+    // Drop old table and rename new one
+    await db.execAsync(`DROP TABLE recipe_ingredients;`);
+    await db.execAsync(`ALTER TABLE recipe_ingredients_new RENAME TO recipe_ingredients;`);
   } catch (error) {
     console.error('Migration error for recipe_ingredients:', error);
   }
@@ -417,9 +400,9 @@ async function ensureIndexes(db: SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_recipes_updated ON recipes(updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_recipes_fav_updated ON recipes(favorite, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
-      ON recipe_ingredients(recipe_id, order_index);
+      ON recipe_ingredients(recipe_id);
     CREATE INDEX IF NOT EXISTS idx_sections_recipe
-      ON recipe_sections(recipe_id, order_index);
+      ON recipe_sections(recipe_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_nocase
       ON tags(name COLLATE NOCASE);
     CREATE INDEX IF NOT EXISTS idx_recipe_tags_recipe ON recipe_tags(recipe_id);

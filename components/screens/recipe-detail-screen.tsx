@@ -125,7 +125,6 @@ const HEADER_HEIGHT = 44;
 interface RecipeDetail {
   id: string;
   title: string;
-  template: string;
   time: string;
   servings: number;
   tags: string[];
@@ -219,7 +218,6 @@ export function RecipeDetailScreen() {
             setRecipe({
               id: data.id,
               title: data.title,
-              template: data.template,
               time: data.time,
               servings: data.servings,
               tags: data.tags,
@@ -900,7 +898,6 @@ export function RecipeDetailScreen() {
             <View style={styles.content}>
               <Animated.View entering={FadeInUp.duration(400).delay(100)} style={styles.titleContainer}>
                 <Text style={styles.title}>{recipe.title}</Text>
-                <Text style={styles.subtitle}>{recipe.template} Recipe</Text>
               </Animated.View>
 
             <Animated.View entering={FadeInUp.duration(400).delay(150)} style={styles.tagContainer}>

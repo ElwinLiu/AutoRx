@@ -1,5 +1,6 @@
 import { ConversionResult } from './types';
 import { getUnitCategory } from './constants';
+import { convertUnitsWithAI } from '@/lib/ai/usecases/unit-conversion';
 
 /**
  * Round a number for display purposes
@@ -17,7 +18,7 @@ function roundForDisplay(value: number): number {
 
 /**
  * Call AI to perform cross-category or complex conversions
- * This is a placeholder - integrate with your actual AI service
+ * Uses the AI use case layer for structured, cost-effective conversions
  */
 export async function convertWithAI(
   amount: number,
@@ -28,55 +29,34 @@ export async function convertWithAI(
   const fromCategory = getUnitCategory(fromUnit);
   const toCategory = getUnitCategory(toUnit);
 
-  // Build context-aware prompt
-  const prompt = buildConversionPrompt(amount, fromUnit, toUnit, ingredientName, fromCategory, toCategory);
-
   try {
-    // TODO: Replace with actual AI service call
-    // For now, return a mock result based on typical conversions
+    const result = await convertUnitsWithAI({
+      amount,
+      fromUnit,
+      toUnit,
+      ingredientName,
+      fromCategory,
+      toCategory,
+    });
+
+    return {
+      amount: roundForDisplay(result.amount),
+      unit: result.unit || toUnit,
+      isEstimated: result.isEstimated,
+      note: result.note,
+    };
+  } catch (error) {
+    console.error('AI conversion error:', error);
+    // Fallback to estimation
     const estimatedAmount = estimateConversion(amount, fromUnit, toUnit, ingredientName);
 
     return {
       amount: roundForDisplay(estimatedAmount),
       unit: toUnit,
       isEstimated: true,
-      note: 'AI estimated based on typical values',
-    };
-  } catch (error) {
-    console.error('AI conversion error:', error);
-    // Fallback: return original amount with note
-    return {
-      amount: roundForDisplay(amount),
-      unit: toUnit,
-      isEstimated: true,
-      note: 'Conversion unavailable',
+      note: 'AI unavailable, using estimated conversion',
     };
   }
-}
-
-/**
- * Build a prompt for AI conversion
- */
-function buildConversionPrompt(
-  amount: number,
-  fromUnit: string,
-  toUnit: string,
-  ingredientName: string,
-  fromCategory?: string,
-  toCategory?: string
-): string {
-  const crossCategory = fromCategory !== toCategory;
-
-  let prompt = `Convert ${amount} ${fromUnit} of "${ingredientName}" to ${toUnit}.`;
-
-  if (crossCategory) {
-    prompt += ` This is a cross-category conversion from ${fromCategory} to ${toCategory}.`;
-    prompt += ` Consider the typical density and common conversion factors for ${ingredientName}.`;
-  }
-
-  prompt += ` Return only the numeric result as a decimal number.`;
-
-  return prompt;
 }
 
 /**

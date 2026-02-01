@@ -9,7 +9,7 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { RecipeCard } from '@/components/recipes/recipe-card';
 import { GlassButton } from '@/components/ui/glass-button';
 import { SearchBar } from '@/components/ui/search-bar';
-import { SettingsSheet } from '@/components/sheets/settings-sheet';
+
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { useDatabase } from '@/lib/db-provider';
 import { recipeRepository } from '@/lib/repositories';
@@ -24,7 +24,7 @@ export function RecipesScreen() {
   const { isReady, error } = useDatabase();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -201,9 +201,6 @@ export function RecipesScreen() {
     <View style={styles.container}>
       <View style={styles.nav}>
         <View style={styles.searchRow}>
-          <GlassButton variant="icon" onPress={() => setSettingsOpen(true)}>
-            <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
-          </GlassButton>
           <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -251,7 +248,6 @@ export function RecipesScreen() {
         }
       />
 
-      <SettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </View>
   );
 }

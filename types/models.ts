@@ -14,7 +14,6 @@ export type InstructionSection = {
 export type Recipe = {
   id: string;
   title: string;
-  template: string;
   time: string;
   servings: number;
   tags: string[];

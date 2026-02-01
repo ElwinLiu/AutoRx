@@ -8,7 +8,7 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { TemplateCard } from '@/components/templates/template-card';
 import { GlassButton } from '@/components/ui/glass-button';
 import { SearchBar } from '@/components/ui/search-bar';
-import { SettingsSheet } from '@/components/sheets/settings-sheet';
+
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { DevSeedButton } from '@/components/dev/dev-seed-button';
 import { useDatabase } from '@/lib/db-provider';
@@ -21,7 +21,7 @@ export function TemplatesScreen() {
   const router = useRouter();
   const { isReady, error } = useDatabase();
   const [searchQuery, setSearchQuery] = useState('');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -125,9 +125,6 @@ export function TemplatesScreen() {
     <View style={styles.container}>
       <View style={styles.nav}>
         <View style={styles.searchRow}>
-          <GlassButton variant="icon" onPress={() => setSettingsOpen(true)}>
-            <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
-          </GlassButton>
           <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -150,7 +147,6 @@ export function TemplatesScreen() {
         columnWrapperStyle={styles.columnWrapper}
       />
 
-      <SettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </View>
   );
 }

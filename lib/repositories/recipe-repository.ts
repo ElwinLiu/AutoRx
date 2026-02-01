@@ -13,7 +13,6 @@ interface RecipeRow {
   image_width: number | null;
   image_height: number | null;
   updated_at: number;
-  template_name: string | null;
 }
 
 interface TagRow {
@@ -57,7 +56,7 @@ export class RecipeRepository extends BaseRepository {
   async getAll(): Promise<Recipe[]> {
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT id, name, template_name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
          FROM recipes
          WHERE deleted_at IS NULL
          ORDER BY updated_at DESC`
@@ -73,7 +72,7 @@ export class RecipeRepository extends BaseRepository {
     const normalizedTag = tag.trim();
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT r.id, r.name, r.template_name, r.cook_time_min, r.servings, r.favorite, r.image_url, r.image_width, r.image_height, r.updated_at
+        `SELECT r.id, r.name, r.cook_time_min, r.servings, r.favorite, r.image_url, r.image_width, r.image_height, r.updated_at
          FROM recipes r
          WHERE r.deleted_at IS NULL
            AND EXISTS (
@@ -95,7 +94,7 @@ export class RecipeRepository extends BaseRepository {
   async getFavorites(): Promise<Recipe[]> {
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT id, name, template_name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
          FROM recipes
          WHERE deleted_at IS NULL AND favorite = 1
          ORDER BY updated_at DESC`
@@ -110,7 +109,7 @@ export class RecipeRepository extends BaseRepository {
   async getByCookTimeMax(maxMinutes: number): Promise<Recipe[]> {
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT id, name, template_name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
          FROM recipes
          WHERE deleted_at IS NULL AND cook_time_min IS NOT NULL AND cook_time_min <= ?
          ORDER BY updated_at DESC`,
@@ -128,7 +127,7 @@ export class RecipeRepository extends BaseRepository {
 
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT r.id, r.name, r.template_name, r.cook_time_min, r.servings, r.favorite, r.image_url, r.image_width, r.image_height, r.updated_at
+        `SELECT r.id, r.name, r.cook_time_min, r.servings, r.favorite, r.image_url, r.image_width, r.image_height, r.updated_at
          FROM recipes r
          WHERE r.deleted_at IS NULL
            AND (
@@ -153,7 +152,7 @@ export class RecipeRepository extends BaseRepository {
   async getById(id: string): Promise<Recipe | null> {
     return this.execute(async (db) => {
       const row = await db.getFirstAsync<RecipeRow>(
-        `SELECT id, name, template_name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
          FROM recipes
          WHERE id = ? AND deleted_at IS NULL`,
         [id]
@@ -176,14 +175,13 @@ export class RecipeRepository extends BaseRepository {
    */
   async create(data: {
     name: string;
-    templateName?: string;
     cookTimeMin?: number;
     servings?: number;
     imageUrl?: string;
     imageWidth?: number;
     imageHeight?: number;
     ingredients?: Array<{ item: string; amount: number; unit: string }>;
-    sections?: Array<{ name: string; content: string; orderIndex?: number }>;
+    sections?: Array<{ name: string; content: string }>;
     tags?: string[];
   }): Promise<Recipe> {
     return this.execute(async (db) => {
@@ -194,12 +192,11 @@ export class RecipeRepository extends BaseRepository {
 
       try {
         await db.runAsync(
-          `INSERT INTO recipes (id, name, template_name, cook_time_min, servings, favorite, image_url, image_width, image_height, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+          `INSERT INTO recipes (id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
           [
             id,
             data.name,
-            data.templateName ?? null,
             data.cookTimeMin ?? null,
             data.servings ?? null,
             data.imageUrl ?? null,
@@ -212,25 +209,22 @@ export class RecipeRepository extends BaseRepository {
 
         // Insert ingredients
         if (data.ingredients?.length) {
-          for (let i = 0; i < data.ingredients.length; i++) {
-            const ing = data.ingredients[i];
+          for (const ing of data.ingredients) {
             await db.runAsync(
-              `INSERT INTO recipe_ingredients (id, recipe_id, order_index, name, amount, unit)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-              [this.generateId(), id, i, ing.item, ing.amount ?? null, ing.unit ?? null]
+              `INSERT INTO recipe_ingredients (id, recipe_id, name, amount, unit)
+               VALUES (?, ?, ?, ?, ?)`,
+              [this.generateId(), id, ing.item, ing.amount ?? null, ing.unit ?? null]
             );
           }
         }
 
         // Insert sections
         if (data.sections?.length) {
-          for (let i = 0; i < data.sections.length; i++) {
-            const section = data.sections[i];
-            const orderIndex = section.orderIndex ?? i;
+          for (const section of data.sections) {
             await db.runAsync(
-              `INSERT INTO recipe_sections (id, recipe_id, name, order_index, content, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-              [this.generateId(), id, section.name, orderIndex, section.content, now]
+              `INSERT INTO recipe_sections (id, recipe_id, name, content, updated_at)
+               VALUES (?, ?, ?, ?, ?)`,
+              [this.generateId(), id, section.name, section.content, now]
             );
           }
         }
@@ -395,7 +389,7 @@ export class RecipeRepository extends BaseRepository {
   private async getIngredientsForRecipe(recipeId: string): Promise<Ingredient[]> {
     const db = await this.getDb();
     const rows = await db.getAllAsync<IngredientRow>(
-      `SELECT id, name, amount, unit FROM recipe_ingredients WHERE recipe_id = ? ORDER BY order_index ASC`,
+      `SELECT id, name, amount, unit FROM recipe_ingredients WHERE recipe_id = ?`,
       [recipeId]
     );
 
@@ -414,8 +408,7 @@ export class RecipeRepository extends BaseRepository {
     const rows = await db.getAllAsync<SectionRow>(
       `SELECT id, name, content
        FROM recipe_sections
-       WHERE recipe_id = ?
-       ORDER BY order_index ASC`,
+       WHERE recipe_id = ?`,
       [recipeId]
     );
 
@@ -465,7 +458,6 @@ export class RecipeRepository extends BaseRepository {
     return {
       id: row.id,
       title: row.name,
-      template: row.template_name ?? 'Custom',
       time: row.cook_time_min ? `${row.cook_time_min} min` : '',
       servings: row.servings ?? 1,
       tags,

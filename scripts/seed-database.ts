@@ -301,13 +301,12 @@ export async function seedDatabase(): Promise<void> {
 
       await db.runAsync(
         `INSERT INTO recipes (
-          id, name, template_name, cook_time_min, servings, favorite,
+          id, name, cook_time_min, servings, favorite,
           image_url, image_width, image_height, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           recipeId,
           recipe.name,
-          recipe.templateName,
           recipe.cookTimeMin ?? null,
           recipe.servings ?? null,
           recipe.favorite ? 1 : 0,
@@ -323,24 +322,23 @@ export async function seedDatabase(): Promise<void> {
       for (const ingredient of recipe.ingredients) {
         const ingredientId = generateId();
         await db.runAsync(
-          `INSERT INTO recipe_ingredients (id, recipe_id, order_index, name, amount, unit) VALUES (?, ?, ?, ?, ?, ?)`,
-          [ingredientId, recipeId, ingredient.orderIndex, ingredient.name, ingredient.amount ?? null, ingredient.unit ?? null]
+          `INSERT INTO recipe_ingredients (id, recipe_id, name, amount, unit) VALUES (?, ?, ?, ?, ?)`,
+          [ingredientId, recipeId, ingredient.name, ingredient.amount ?? null, ingredient.unit ?? null]
         );
       }
 
       // Insert sections
       const template = DEFAULT_TEMPLATES.find((t) => t.name === recipe.templateName);
       const sectionOrder = template?.sections ?? Object.keys(recipe.sections);
-      for (let i = 0; i < sectionOrder.length; i++) {
-        const sectionName = sectionOrder[i];
+      for (const sectionName of sectionOrder) {
         const content = recipe.sections[sectionName];
         if (!content) continue;
 
         const sectionId = generateId();
         await db.runAsync(
-          `INSERT INTO recipe_sections (id, recipe_id, name, order_index, content, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [sectionId, recipeId, sectionName, i, content, timestamp]
+          `INSERT INTO recipe_sections (id, recipe_id, name, content, updated_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          [sectionId, recipeId, sectionName, content, timestamp]
         );
       }
 
