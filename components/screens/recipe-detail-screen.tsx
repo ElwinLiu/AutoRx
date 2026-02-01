@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, Keyb
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Animated, {
@@ -145,6 +145,7 @@ export function RecipeDetailScreen() {
   const { buildOptions } = useNativeHeaderOptions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<'ingredients' | 'instructions'>('ingredients');
   const [servings, setServings] = useState(1);
@@ -880,7 +881,7 @@ export function RecipeDetailScreen() {
             <AnimatedIconButton
               name="ellipsis-horizontal"
               size={22}
-              onPress={() => {}}
+              onPress={() => router.push(`/recipe/edit/${recipeId}`)}
               variant="dark"
             />
           </View>
