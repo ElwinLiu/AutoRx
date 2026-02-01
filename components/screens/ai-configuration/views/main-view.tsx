@@ -17,7 +17,9 @@ type MainViewProps = Pick<
   | 'verifyProvider'
   | 'removeProvider'
   | 'setActiveSection'
->;
+> & {
+  onSelectModel: () => void;
+};
 
 /**
  * MainView - The main AI configuration screen
@@ -38,7 +40,7 @@ export function MainView({
   setProviderApiKey,
   verifyProvider,
   removeProvider,
-  setActiveSection,
+  onSelectModel,
 }: MainViewProps) {
   const { spacing } = useAppTheme();
 
@@ -63,7 +65,7 @@ export function MainView({
       <ModelSelectionSection
         settings={settings}
         configuredProviders={configuredProviders}
-        onSelectSection={setActiveSection}
+        onSelectModel={onSelectModel}
       />
 
       <AboutSection />

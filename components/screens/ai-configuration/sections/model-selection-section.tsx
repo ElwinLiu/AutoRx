@@ -2,39 +2,32 @@ import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
-import { PROVIDERS } from '@/lib/ai/settings';
 import type { AISettings, ProviderId } from '@/hooks/use-ai';
-import type { AIConfigSection } from '../hooks';
 
 type ModelSelectionSectionProps = {
   settings: AISettings | null;
   configuredProviders: ProviderId[];
-  onSelectSection: (section: AIConfigSection) => void;
+  onSelectModel: () => void;
 };
 
 /**
- * ModelSelectionSection - Displays the primary and secondary model selection options
+ * ModelSelectionSection - Displays model configuration with single selection entry
  *
  * Features:
- * - Shows current model configuration status
- * - Navigates to model selection screens
- * - Displays helpful messages based on provider configuration state
+ * - Single "Select Model" button to open model picker
+ * - Read-only display of configured primary and secondary models
+ * - Clean, simple text-based display for configured models
  */
 export function ModelSelectionSection({
   settings,
   configuredProviders,
-  onSelectSection,
+  onSelectModel,
 }: ModelSelectionSectionProps) {
   const { colors, spacing, typography, radius } = useAppTheme();
 
-  const getModelDisplayText = (model: AISettings['primaryModel']) => {
-    if (!model) {
-      return configuredProviders.length > 0
-        ? 'Select a model'
-        : 'Configure a provider first';
-    }
-    return `${PROVIDERS[model.provider].name} · ${model.name || model.modelId}`;
-  };
+  const hasProviders = configuredProviders.length > 0;
+  const primaryModel = settings?.primaryModel;
+  const secondaryModel = settings?.secondaryModel;
 
   return (
     <View style={{ marginBottom: spacing.lg }}>
@@ -49,79 +42,105 @@ export function ModelSelectionSection({
       >
         Models
       </Text>
-      <View
+
+      {/* Select Model Button */}
+      <Pressable
+        onPress={onSelectModel}
+        disabled={!hasProviders}
         style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
           backgroundColor: colors.backgroundSecondary,
           borderRadius: radius.lg,
           borderWidth: 1,
           borderColor: colors.borderPrimary,
-          overflow: 'hidden',
+          opacity: hasProviders ? 1 : 0.5,
         }}
       >
-        {/* Primary Model */}
-        <Pressable
-          onPress={() => onSelectSection('primary')}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
-            borderBottomWidth: 1,
-            borderColor: colors.borderSecondary,
-          }}
-        >
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <Ionicons name="sparkles" size={20} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ ...typography.body, color: colors.textPrimary }}>
-                Primary Model
-              </Text>
-              <Text
-                style={{ ...typography.callout, color: colors.textSecondary }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {getModelDisplayText(settings?.primaryModel)}
-              </Text>
-            </View>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: radius.md,
+              backgroundColor: colors.surfaceSecondary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="cube-outline" size={20} color={colors.accent} />
           </View>
-          <View style={{ width: 20, alignItems: 'center' }}>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ ...typography.body, color: colors.textPrimary, fontWeight: '600' }}>
+              Select Model
+            </Text>
+            <Text
+              style={{ ...typography.callout, color: colors.textSecondary }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {hasProviders
+                ? 'Choose from available models'
+                : 'Configure a provider first'}
+            </Text>
           </View>
-        </Pressable>
+        </View>
+        <View style={{ width: 20, alignItems: 'center' }}>
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+        </View>
+      </Pressable>
 
-        {/* Secondary Model */}
-        <Pressable
-          onPress={() => onSelectSection('secondary')}
+      {/* Configured Models Info */}
+      {(primaryModel || secondaryModel) && (
+        <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
+            marginTop: spacing.md,
+            padding: spacing.lg,
+            backgroundColor: colors.backgroundSecondary,
+            borderRadius: radius.lg,
+            borderWidth: 1,
+            borderColor: colors.borderPrimary,
+            gap: spacing.md,
           }}
         >
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <Ionicons name="flash" size={20} color={colors.warning} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ ...typography.body, color: colors.textPrimary }}>
-                Secondary Model
+          {/* Primary Model Info */}
+          {primaryModel && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Ionicons name="sparkles" size={16} color={colors.accent} />
+              <Text style={{ ...typography.footnote, color: colors.textSecondary }}>
+                Primary:
               </Text>
               <Text
-                style={{ ...typography.callout, color: colors.textSecondary }}
+                style={{ ...typography.callout, color: colors.textPrimary, flex: 1 }}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {getModelDisplayText(settings?.secondaryModel)}
+                {primaryModel.name || primaryModel.modelId}
               </Text>
             </View>
-          </View>
-          <View style={{ width: 20, alignItems: 'center' }}>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </View>
-        </Pressable>
-      </View>
+          )}
+
+          {/* Secondary Model Info */}
+          {secondaryModel && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Ionicons name="flash" size={16} color={colors.warning} />
+              <Text style={{ ...typography.footnote, color: colors.textSecondary }}>
+                Secondary:
+              </Text>
+              <Text
+                style={{ ...typography.callout, color: colors.textPrimary, flex: 1 }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {secondaryModel.name || secondaryModel.modelId}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }

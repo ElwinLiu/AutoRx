@@ -6,13 +6,13 @@ export { ProviderIcon, ProviderItem, ModelCard, ModelList, ModelListSkeleton } f
 
 // Hooks
 export { useAIConfiguration } from './hooks';
-export type { UseAIConfigurationReturn, AIConfigSection } from './hooks';
+export type { UseAIConfigurationReturn, AIConfigSection, SelectedModel } from './hooks';
 
 // Sections
 export { ProviderListSection, ModelSelectionSection, AboutSection } from './sections';
 
 // Views
-export { MainView, ModelSelectionView } from './views';
+export { MainView, ModelSelectionScreen, ModelRoleSelectionScreen } from './views';
 
 // Types
 export type {

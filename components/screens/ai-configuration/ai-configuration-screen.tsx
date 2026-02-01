@@ -14,7 +14,8 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import {
   useAIConfiguration,
   MainView,
-  ModelSelectionView,
+  ModelSelectionScreen,
+  ModelRoleSelectionScreen,
 } from '.';
 
 /**
@@ -44,6 +45,11 @@ export function AIConfigurationScreen() {
     isLoading,
     activeSection,
     setActiveSection,
+    allAvailableModels,
+    isSaving,
+    selectModel,
+    assignModelRole,
+    selectedModel,
   } = aiConfig;
 
   const styles = React.useMemo(
@@ -100,10 +106,10 @@ export function AIConfigurationScreen() {
 
   const getTitle = () => {
     switch (activeSection) {
-      case 'primary':
-        return 'Primary Model';
-      case 'secondary':
-        return 'Secondary Model';
+      case 'modelSelection':
+        return 'Select Model';
+      case 'modelRoleSelection':
+        return 'Assign Role';
       default:
         return 'AI Configuration';
     }
@@ -112,6 +118,8 @@ export function AIConfigurationScreen() {
   const handleBack = () => {
     if (activeSection === 'main') {
       router.back();
+    } else if (activeSection === 'modelRoleSelection') {
+      setActiveSection('modelSelection');
     } else {
       setActiveSection('main');
     }
@@ -127,21 +135,27 @@ export function AIConfigurationScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      {activeSection === 'main' && <MainView {...aiConfig} />}
-
-      {activeSection === 'primary' && (
-        <ModelSelectionView
+      {activeSection === 'main' && (
+        <MainView
           {...aiConfig}
-          type="primary"
-          onBack={() => setActiveSection('main')}
+          onSelectModel={() => setActiveSection('modelSelection')}
         />
       )}
 
-      {activeSection === 'secondary' && (
-        <ModelSelectionView
-          {...aiConfig}
-          type="secondary"
-          onBack={() => setActiveSection('main')}
+      {activeSection === 'modelSelection' && (
+        <ModelSelectionScreen
+          models={allAvailableModels}
+          isLoading={isLoading}
+          onSelect={selectModel}
+        />
+      )}
+
+      {activeSection === 'modelRoleSelection' && selectedModel && (
+        <ModelRoleSelectionScreen
+          model={selectedModel.model}
+          provider={selectedModel.provider}
+          isSaving={isSaving}
+          onAssignRole={assignModelRole}
         />
       )}
     </View>

@@ -3,13 +3,17 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   useAI,
   type ProviderId,
-  type ModelConfig,
   type FetchedModel,
   type AISettings,
   PROVIDERS,
 } from '@/hooks/use-ai';
 
-export type AIConfigSection = 'main' | 'primary' | 'secondary';
+export type AIConfigSection = 'main' | 'modelSelection' | 'modelRoleSelection';
+
+export type SelectedModel = {
+  model: FetchedModel;
+  provider: ProviderId;
+} | null;
 
 export type UseAIConfigurationReturn = {
   // State
@@ -22,6 +26,7 @@ export type UseAIConfigurationReturn = {
   providerErrors: Record<ProviderId, string | null>;
   availableModels: Record<ProviderId, FetchedModel[]>;
   isSaving: boolean;
+  selectedModel: SelectedModel;
 
   // Computed
   allAvailableModels: (FetchedModel & { provider: ProviderId })[];
@@ -34,8 +39,8 @@ export type UseAIConfigurationReturn = {
   setProviderApiKey: (provider: ProviderId, value: string) => void;
   verifyProvider: (provider: ProviderId) => Promise<void>;
   removeProvider: (provider: ProviderId) => Promise<void>;
-  selectPrimaryModel: (model: ModelConfig) => Promise<void>;
-  selectSecondaryModel: (model: ModelConfig) => Promise<void>;
+  selectModel: (model: FetchedModel, provider: ProviderId) => void;
+  assignModelRole: (role: 'primary' | 'secondary') => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -83,6 +88,7 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
     openrouter: [],
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<SelectedModel>(null);
 
   // Load settings on mount
   useEffect(() => {
@@ -181,30 +187,37 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
     [deleteProviderApiKey]
   );
 
-  const selectPrimaryModel = useCallback(
-    async (model: ModelConfig) => {
-      setIsSaving(true);
-      try {
-        await savePrimaryModel(model);
-        setActiveSection('main');
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [savePrimaryModel]
-  );
+  const selectModel = useCallback((model: FetchedModel, provider: ProviderId) => {
+    setSelectedModel({ model, provider });
+    setActiveSection('modelRoleSelection');
+  }, []);
 
-  const selectSecondaryModel = useCallback(
-    async (model: ModelConfig) => {
+  const assignModelRole = useCallback(
+    async (role: 'primary' | 'secondary') => {
+      if (!selectedModel) return;
+
+      const modelConfig = {
+        provider: selectedModel.provider,
+        modelId: selectedModel.model.id,
+        name: selectedModel.model.name,
+        description: selectedModel.model.description,
+        contextWindow: selectedModel.model.contextWindow,
+      };
+
       setIsSaving(true);
       try {
-        await saveSecondaryModel(model);
+        if (role === 'primary') {
+          await savePrimaryModel(modelConfig);
+        } else {
+          await saveSecondaryModel(modelConfig);
+        }
+        setSelectedModel(null);
         setActiveSection('main');
       } finally {
         setIsSaving(false);
       }
     },
-    [saveSecondaryModel]
+    [selectedModel, savePrimaryModel, saveSecondaryModel]
   );
 
   const refresh = useCallback(async () => {
@@ -222,6 +235,7 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
     providerErrors,
     availableModels,
     isSaving,
+    selectedModel,
 
     // Computed
     allAvailableModels,
@@ -234,8 +248,8 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
     setProviderApiKey,
     verifyProvider,
     removeProvider,
-    selectPrimaryModel,
-    selectSecondaryModel,
+    selectModel,
+    assignModelRole,
     refresh,
   };
 }
