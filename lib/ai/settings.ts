@@ -90,22 +90,6 @@ export async function getProviderApiKey(provider: ProviderId): Promise<string | 
   return keys[provider] ?? null;
 }
 
-/** @deprecated Use getProviderKeys instead */
-export async function getApiKey(): Promise<string | null> {
-  const keys = await getProviderKeys();
-  return keys.openai ?? keys.openrouter ?? null;
-}
-
-/** @deprecated Use setProviderApiKey instead */
-export async function setApiKey(apiKey: string): Promise<void> {
-  await setProviderApiKey('openai', apiKey);
-}
-
-/** @deprecated Use removeProviderApiKey instead */
-export async function removeApiKey(): Promise<void> {
-  await removeProviderApiKey('openai');
-}
-
 export async function getPrimaryModel(): Promise<ModelConfig | null> {
   try {
     const json = await SecureStore.getItemAsync(STORAGE_KEYS.PRIMARY_MODEL);

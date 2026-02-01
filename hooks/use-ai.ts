@@ -15,7 +15,6 @@ import {
 import {
   verifyProviderApiKey,
   fetchModelsForProvider,
-  convertFetchedModelToConfig,
   type FetchedModel,
   type ProviderVerificationResult,
 } from '@/lib/ai/model-fetcher';
@@ -41,10 +40,6 @@ type UseAIReturn = {
   fetchProviderModels: (provider: ProviderId) => Promise<FetchedModel[]>;
 
   // Settings management
-  /** @deprecated Use saveProviderApiKey instead */
-  saveApiKey: (apiKey: string) => Promise<void>;
-  /** @deprecated Use deleteProviderApiKey instead */
-  deleteApiKey: () => Promise<void>;
   savePrimaryModel: (config: ModelConfig) => Promise<void>;
   saveSecondaryModel: (config: ModelConfig) => Promise<void>;
   clearAllSettings: () => Promise<void>;
@@ -135,15 +130,6 @@ export function useAI(): UseAIReturn {
     }
   }, []);
 
-  // Legacy methods for backwards compatibility
-  const saveApiKey = useCallback(async (apiKey: string) => {
-    await saveProviderApiKey('openai', apiKey);
-  }, [saveProviderApiKey]);
-
-  const deleteApiKey = useCallback(async () => {
-    await deleteProviderApiKey('openai');
-  }, [deleteProviderApiKey]);
-
   const savePrimaryModel = useCallback(async (config: ModelConfig) => {
     try {
       setError(null);
@@ -211,8 +197,6 @@ export function useAI(): UseAIReturn {
     deleteProviderApiKey,
     verifyProviderKey,
     fetchProviderModels,
-    saveApiKey,
-    deleteApiKey,
     savePrimaryModel,
     saveSecondaryModel,
     clearAllSettings,

@@ -1,6 +1,6 @@
-import type { ProviderId, FetchedModel, ModelConfig } from '@/hooks/use-ai';
+import type { ProviderId } from '@/hooks/use-ai';
 
-export type AIConfigSection = 'main' | 'primary' | 'secondary';
+export type AIConfigSection = 'main' | 'modelSelection' | 'modelRoleSelection';
 
 export type ProviderItemProps = {
   provider: ProviderId;
@@ -18,19 +18,4 @@ export type ProviderItemProps = {
 export type ProviderIconProps = {
   provider: ProviderId;
   size?: number;
-};
-
-export type ModelListProps = {
-  models: (FetchedModel & { provider: ProviderId })[];
-  selectedModel: ModelConfig | null;
-  isSaving: boolean;
-  onSelect: (model: ModelConfig) => void;
-  emptyMessage: string;
-};
-
-export type ModelCardProps = {
-  model: FetchedModel & { provider: ProviderId };
-  isSelected: boolean;
-  isDisabled: boolean;
-  onPress: () => void;
 };

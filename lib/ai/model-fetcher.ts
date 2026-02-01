@@ -1,4 +1,4 @@
-import { PROVIDERS, type ProviderId, type ModelConfig } from './settings';
+import { type ProviderId } from './settings';
 import { APP_NAME } from '@/constants/app';
 
 export type FetchedModel = {
@@ -107,17 +107,4 @@ export async function fetchModelsForProvider(
 ): Promise<FetchedModel[]> {
   const result = await verifyProviderApiKey(provider, apiKey);
   return result.models ?? [];
-}
-
-export function convertFetchedModelToConfig(
-  provider: ProviderId,
-  model: FetchedModel
-): ModelConfig {
-  return {
-    provider,
-    modelId: model.id,
-    name: model.name,
-    description: model.description,
-    contextWindow: model.contextWindow,
-  };
 }

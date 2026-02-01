@@ -18,9 +18,6 @@ export type ChatCompletionOptions = {
   messages: Message[];
   temperature?: number;
   maxTokens?: number;
-  /** @deprecated Use modelRole instead */
-  useSecondaryModel?: boolean;
-  /** Preferred way to specify which model to use */
   modelRole?: ModelRole;
 };
 
@@ -100,8 +97,7 @@ export async function completeChat(
     getSecondaryModel(),
   ]);
 
-  // Determine which model role to use (prefer modelRole, fallback to useSecondaryModel)
-  const modelRole = options.modelRole ?? (options.useSecondaryModel ? MODEL_ROLES.SECONDARY : MODEL_ROLES.PRIMARY);
+  const modelRole = options.modelRole ?? MODEL_ROLES.PRIMARY;
   const modelConfig = modelRole === MODEL_ROLES.SECONDARY ? secondaryModel : primaryModel;
 
   if (!modelConfig) {
