@@ -77,7 +77,7 @@ export class TemplateRepository extends BaseRepository {
       const row = await db.getFirstAsync<TemplateRow>(
         `SELECT id, name, created_at, updated_at
          FROM templates
-         WHERE name = ? AND deleted_at IS NULL`,
+         WHERE name = ? COLLATE NOCASE AND deleted_at IS NULL`,
         [name]
       );
 
@@ -92,13 +92,13 @@ export class TemplateRepository extends BaseRepository {
    * Search templates by name
    */
   async search(query: string): Promise<Template[]> {
-    const searchTerm = `%${query.toLowerCase()}%`;
+    const searchTerm = `%${query}%`;
 
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<TemplateRow>(
         `SELECT id, name, created_at, updated_at
          FROM templates
-         WHERE deleted_at IS NULL AND LOWER(name) LIKE ?
+         WHERE deleted_at IS NULL AND name LIKE ? COLLATE NOCASE
          ORDER BY name ASC`,
         [searchTerm]
       );
@@ -182,15 +182,6 @@ export class TemplateRepository extends BaseRepository {
 
         // Update sections if provided
         if (data.sections !== undefined) {
-          // First, delete recipe sections that reference this template's sections
-          await db.runAsync(
-            `DELETE FROM recipe_sections 
-             WHERE template_section_id IN (
-               SELECT id FROM template_sections WHERE template_id = ?
-             )`,
-            [id]
-          );
-
           // Delete existing template sections
           await db.runAsync(
             'DELETE FROM template_sections WHERE template_id = ?',

@@ -38,11 +38,7 @@ export function RecipesScreen() {
           data = await recipeRepository.getFavorites();
           break;
         case 'Quick':
-          data = await recipeRepository.getAll();
-          data = data.filter((r) => {
-            const minutes = parseInt(r.time);
-            return !isNaN(minutes) && minutes <= 30;
-          });
+          data = await recipeRepository.getByCookTimeMax(30);
           break;
         case 'Healthy':
           data = await recipeRepository.getByTag('Healthy');
@@ -99,25 +95,18 @@ export function RecipesScreen() {
   }, [activeFilter, fetchRecipes]);
 
   const renderItem = useCallback(
-    ({ item }: { item: Recipe }) => (
-      <RecipeCard
-        recipe={item}
-        onPress={() => handleRecipePress(item)}
-        onFavoriteToggle={handleFavoriteToggle}
-      />
-    ),
+    ({ item, i }: { item: unknown; i: number }) => {
+      const recipe = item as Recipe;
+      return (
+        <RecipeCard
+          recipe={recipe}
+          onPress={() => handleRecipePress(recipe)}
+          onFavoriteToggle={handleFavoriteToggle}
+        />
+      );
+    },
     [handleRecipePress, handleFavoriteToggle]
   );
-
-  const getItemHeight = useCallback((item: Recipe) => {
-    const imageAspectRatio = item.imageWidth && item.imageHeight && item.imageHeight > 0
-      ? item.imageWidth / item.imageHeight
-      : 4 / 3;
-    const imageHeight = 160 / imageAspectRatio;
-    const contentHeight = 70;
-    const totalHeight = imageHeight + contentHeight + spacing.xs * 2;
-    return Math.round(totalHeight);
-  }, [spacing.xs]);
 
   const styles = useMemo(
     () =>
@@ -247,7 +236,6 @@ export function RecipesScreen() {
         numColumns={2}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        getItemHeight={getItemHeight}
         style={{ flex: 1 }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>

@@ -8,7 +8,9 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { AIFab } from '@/components/ai/ai-fab';
 import { AIBottomSheet } from '@/components/ai/ai-bottom-sheet';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { templateRepository } from '@/lib/repositories';
+import { useDatabase } from '@/lib/db-provider';
 
 type TemplateEditorScreenProps = {
   templateId?: string;
@@ -23,6 +25,7 @@ export function TemplateEditorScreen({ templateId }: TemplateEditorScreenProps) 
   const { colors, spacing, radius, typography } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isReady, error } = useDatabase();
 
   const [templateName, setTemplateName] = useState('');
   const [sections, setSections] = useState<InstructionSection[]>([
@@ -34,7 +37,7 @@ export function TemplateEditorScreen({ templateId }: TemplateEditorScreenProps) 
 
   // Fetch template from database using repository if editing
   useEffect(() => {
-    if (templateId) {
+    if (isReady && templateId) {
       const fetchTemplate = async () => {
         try {
           const template = await templateRepository.getById(templateId);
@@ -51,7 +54,7 @@ export function TemplateEditorScreen({ templateId }: TemplateEditorScreenProps) 
       };
       fetchTemplate();
     }
-  }, [templateId]);
+  }, [isReady, templateId]);
 
   const addSection = () => {
     setSections((prev) => [...prev, { id: `inst-${Date.now()}`, name: 'New Section' }]);
@@ -213,6 +216,10 @@ export function TemplateEditorScreen({ templateId }: TemplateEditorScreenProps) 
       }),
     [colors, insets.bottom, insets.top, radius, spacing, typography]
   );
+
+  if (!isReady) {
+    return <LoadingScreen error={error} />;
+  }
 
   return (
     <View style={styles.container}>

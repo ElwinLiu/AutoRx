@@ -6,7 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { templateRepository, recipeRepository } from '@/lib/repositories';
+import { useDatabase } from '@/lib/db-provider';
 import type { Template } from '@/types/models';
 
 type IngredientInput = {
@@ -22,10 +24,11 @@ export function AddRecipeScreen() {
   const { colors, spacing, radius, typography } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isReady, error } = useDatabase();
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [recipeName, setRecipeName] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [time, setTime] = useState('');
   const [servings, setServings] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -35,29 +38,36 @@ export function AddRecipeScreen() {
   ]);
   const [instructions, setInstructions] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch templates from database using repository
   const fetchTemplates = useCallback(async () => {
     try {
       const data = await templateRepository.getAll();
       setTemplates(data);
-      if (data.length > 0 && !selectedTemplate) {
-        setSelectedTemplate(data[0].name);
+      if (data.length > 0) {
+        setSelectedTemplateId((prev) => prev ?? data[0].id);
       }
     } catch (err) {
       console.error('Error fetching templates:', err);
+    } finally {
+      setIsLoading(false);
     }
-  }, [selectedTemplate]);
+  }, []);
 
   useEffect(() => {
-    fetchTemplates();
-  }, [fetchTemplates]);
+    if (isReady) {
+      fetchTemplates();
+    }
+  }, [isReady, fetchTemplates]);
 
   // Refresh templates when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchTemplates();
-    }, [fetchTemplates])
+      if (isReady) {
+        fetchTemplates();
+      }
+    }, [isReady, fetchTemplates])
   );
 
   const addTag = (tag: string) => {
@@ -94,7 +104,7 @@ export function AddRecipeScreen() {
       return;
     }
 
-    const template = templates.find((t) => t.name === selectedTemplate);
+    const template = templates.find((t) => t.id === selectedTemplateId);
     if (!template) {
       console.warn('Template is required');
       return;
@@ -120,14 +130,15 @@ export function AddRecipeScreen() {
         }));
 
       // Map instructions to template sections
-      const sections = template.instructionSections.map((section) => ({
-        templateSectionId: section.id,
+      const sections = template.instructionSections.map((section, index) => ({
+        name: section.name,
+        orderIndex: index,
         content: instructions,
       }));
 
       await recipeRepository.create({
         name: recipeName.trim(),
-        templateId: template.id,
+        templateName: template.name,
         cookTimeMin,
         servings: servingsNum,
         ingredients: validIngredients,
@@ -274,6 +285,10 @@ export function AddRecipeScreen() {
     [colors, insets.bottom, insets.top, radius, spacing, typography]
   );
 
+  if (!isReady || isLoading) {
+    return <LoadingScreen error={error} />;
+  }
+
   return (
     <View style={styles.container}>
       {/* Custom Header */}
@@ -307,11 +322,11 @@ export function AddRecipeScreen() {
           <Text style={styles.fieldLabel}>Template</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {templates.map((template) => {
-              const isActive = selectedTemplate === template.name;
+              const isActive = selectedTemplateId === template.id;
               return (
                 <Pressable
                   key={template.id}
-                  onPress={() => setSelectedTemplate(template.name)}
+                  onPress={() => setSelectedTemplateId(template.id)}
                   style={[styles.templateChip, isActive && styles.templateChipActive]}
                 >
                   <Text style={[styles.templateText, isActive && styles.templateTextActive]}>{template.name}</Text>

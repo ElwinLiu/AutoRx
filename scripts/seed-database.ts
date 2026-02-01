@@ -267,12 +267,10 @@ export async function seedDatabase(): Promise<void> {
 
     // Insert Templates and their Sections
     const templateIdMap = new Map<string, string>(); // name -> id
-    const templateSectionIdMap = new Map<string, Map<string, string>>(); // templateName -> (sectionName -> id)
 
     for (const template of DEFAULT_TEMPLATES) {
       const templateId = generateId();
       templateIdMap.set(template.name, templateId);
-      templateSectionIdMap.set(template.name, new Map());
 
       const timestamp = now();
 
@@ -285,7 +283,6 @@ export async function seedDatabase(): Promise<void> {
       for (let i = 0; i < template.sections.length; i++) {
         const sectionId = generateId();
         const sectionName = template.sections[i];
-        templateSectionIdMap.get(template.name)!.set(sectionName, sectionId);
 
         await db.runAsync(
           `INSERT INTO template_sections (id, template_id, name, order_index, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -304,13 +301,13 @@ export async function seedDatabase(): Promise<void> {
 
       await db.runAsync(
         `INSERT INTO recipes (
-          id, template_id, name, cook_time_min, servings, favorite,
+          id, name, template_name, cook_time_min, servings, favorite,
           image_url, image_width, image_height, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           recipeId,
-          templateId,
           recipe.name,
+          recipe.templateName,
           recipe.cookTimeMin ?? null,
           recipe.servings ?? null,
           recipe.favorite ? 1 : 0,
@@ -332,15 +329,18 @@ export async function seedDatabase(): Promise<void> {
       }
 
       // Insert sections
-      const sectionIdMap = templateSectionIdMap.get(recipe.templateName)!;
-      for (const [sectionName, content] of Object.entries(recipe.sections)) {
-        const templateSectionId = sectionIdMap.get(sectionName);
-        if (!templateSectionId) continue;
+      const template = DEFAULT_TEMPLATES.find((t) => t.name === recipe.templateName);
+      const sectionOrder = template?.sections ?? Object.keys(recipe.sections);
+      for (let i = 0; i < sectionOrder.length; i++) {
+        const sectionName = sectionOrder[i];
+        const content = recipe.sections[sectionName];
+        if (!content) continue;
 
         const sectionId = generateId();
         await db.runAsync(
-          `INSERT INTO recipe_sections (id, recipe_id, template_section_id, content, updated_at) VALUES (?, ?, ?, ?, ?)`,
-          [sectionId, recipeId, templateSectionId, content, timestamp]
+          `INSERT INTO recipe_sections (id, recipe_id, name, order_index, content, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [sectionId, recipeId, sectionName, i, content, timestamp]
         );
       }
 
@@ -349,7 +349,7 @@ export async function seedDatabase(): Promise<void> {
         for (const tagName of recipe.tags) {
           // Check if tag exists
           const existingTag = await db.getFirstAsync<{ id: string }>(
-            'SELECT id FROM tags WHERE name = ?',
+            'SELECT id FROM tags WHERE name = ? COLLATE NOCASE',
             [tagName]
           );
 

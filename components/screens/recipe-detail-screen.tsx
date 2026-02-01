@@ -24,6 +24,7 @@ import { AIFab } from '@/components/ai/ai-fab';
 import { recipeRepository } from '@/lib/repositories';
 import { AIBottomSheet } from '@/components/ai/ai-bottom-sheet';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
+import { UnitConversionSheet } from '@/components/units/unit-conversion-sheet';
 import type { Ingredient } from '@/types/models';
 
 const formatAmount = (value: number) => {
@@ -155,6 +156,11 @@ export function RecipeDetailScreen() {
   const [isEditingServings, setIsEditingServings] = useState(false);
   const [tempServings, setTempServings] = useState('');
 
+  // Unit conversion state
+  const [unitConversionOpen, setUnitConversionOpen] = useState(false);
+  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
+  const [ingredientConversions, setIngredientConversions] = useState<Record<string, { amount: number; unit: string }>>({});
+
   // Servings input handlers
   const handleServingsSubmit = useCallback(() => {
     const newServings = parseFloat(tempServings);
@@ -173,6 +179,19 @@ export function RecipeDetailScreen() {
     setTempServings(servings.toString());
     setIsEditingServings(true);
   }, [servings]);
+
+  // Unit conversion handlers
+  const handleIngredientPress = useCallback((ingredient: Ingredient) => {
+    setSelectedIngredient(ingredient);
+    setUnitConversionOpen(true);
+  }, []);
+
+  const handleUnitConversion = useCallback((ingredientId: string, newAmount: number, newUnit: string) => {
+    setIngredientConversions((prev) => ({
+      ...prev,
+      [ingredientId]: { amount: newAmount, unit: newUnit },
+    }));
+  }, []);
 
   // Persist favorite toggle to database
   const handleToggleFavorite = useCallback(async () => {
@@ -689,6 +708,30 @@ export function RecipeDetailScreen() {
         ingredientAmountChecked: {
           color: colors.textTertiary,
         },
+        ingredientCheckboxArea: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+        },
+        ingredientAmountArea: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.xs,
+          paddingVertical: spacing.xs,
+          paddingHorizontal: spacing.sm,
+          borderRadius: radius.md,
+        },
+        convertedIndicator: {
+          ...typography.caption,
+          color: colors.accent,
+          opacity: 0,
+          width: 0,
+        },
+        convertedIndicatorVisible: {
+          opacity: 0.7,
+          width: 16,
+        },
         checkbox: {
           width: 26,
           height: 26,
@@ -991,22 +1034,42 @@ export function RecipeDetailScreen() {
                   {recipe.ingredients.map((ingredient, index) => {
                     const checked = checkedIngredients.has(ingredient.id);
                     const isLast = index === recipe.ingredients.length - 1;
+                    const conversion = ingredientConversions[ingredient.id];
+
+                    // Use converted values if available, otherwise use original scaled values
+                    const displayAmount = conversion
+                      ? conversion.amount * scale
+                      : ingredient.amount * scale;
+                    const displayUnit = conversion?.unit || ingredient.unit;
+
                     return (
-                      <Pressable
+                      <View
                         key={ingredient.id}
-                        onPress={() => toggleIngredient(ingredient)}
                         style={[styles.ingredientRow, isLast && styles.ingredientRowLast]}
                       >
-                        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-                          {checked && <Ionicons name="checkmark" size={16} color={colors.textInverted} />}
-                        </View>
-                        <Text style={[styles.ingredientText, checked && styles.ingredientTextChecked]}>
-                          {ingredient.item}
-                        </Text>
-                        <Text style={[styles.ingredientAmount, checked && styles.ingredientAmountChecked]}>
-                          {formatAmount(ingredient.amount * scale)} {ingredient.unit}
-                        </Text>
-                      </Pressable>
+                        <Pressable
+                          onPress={() => toggleIngredient(ingredient)}
+                          style={styles.ingredientCheckboxArea}
+                        >
+                          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                            {checked && <Ionicons name="checkmark" size={16} color={colors.textInverted} />}
+                          </View>
+                          <Text style={[styles.ingredientText, checked && styles.ingredientTextChecked]}>
+                            {ingredient.item}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleIngredientPress(ingredient)}
+                          style={styles.ingredientAmountArea}
+                        >
+                          <Text style={[styles.ingredientAmount, checked && styles.ingredientAmountChecked]}>
+                            {formatAmount(displayAmount)} {displayUnit}
+                          </Text>
+                          <Text style={[styles.convertedIndicator, conversion && styles.convertedIndicatorVisible]}>
+                            ↻
+                          </Text>
+                        </Pressable>
+                      </View>
                     );
                   })}
                 </View>
@@ -1041,6 +1104,19 @@ export function RecipeDetailScreen() {
         onClose={() => setAiOpen(false)}
         context="recipe-detail"
         contextLabel={`Editing: ${recipe.title}`}
+      />
+
+      <UnitConversionSheet
+        visible={unitConversionOpen}
+        onClose={() => setUnitConversionOpen(false)}
+        ingredientName={selectedIngredient?.item || ''}
+        originalAmount={selectedIngredient?.amount || 0}
+        originalUnit={selectedIngredient?.unit || ''}
+        onConvert={(amount, unit) => {
+          if (selectedIngredient) {
+            handleUnitConversion(selectedIngredient.id, amount, unit);
+          }
+        }}
       />
     </View>
   );
