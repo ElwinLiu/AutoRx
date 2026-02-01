@@ -343,6 +343,32 @@ export class RecipeRepository extends BaseRepository {
     });
   }
 
+  /**
+   * Get all unique tags from the database
+   */
+  async getAllTags(): Promise<string[]> {
+    return this.execute(async (db) => {
+      const rows = await db.getAllAsync<TagRow>(
+        `SELECT name FROM tags ORDER BY name COLLATE NOCASE ASC`
+      );
+      return rows.map((r) => r.name);
+    });
+  }
+
+  /**
+   * Search tags by partial match
+   */
+  async searchTags(query: string): Promise<string[]> {
+    const searchTerm = `%${query}%`;
+    return this.execute(async (db) => {
+      const rows = await db.getAllAsync<TagRow>(
+        `SELECT name FROM tags WHERE name LIKE ? COLLATE NOCASE ORDER BY name COLLATE NOCASE ASC`,
+        [searchTerm]
+      );
+      return rows.map((r) => r.name);
+    });
+  }
+
   // Private helper methods
 
   private async getTagsForRecipe(recipeId: string): Promise<string[]> {

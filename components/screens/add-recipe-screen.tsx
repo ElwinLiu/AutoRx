@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { TagInput } from '@/components/ui/tag-input';
 import { templateRepository, recipeRepository } from '@/lib/repositories';
 import { useDatabase } from '@/lib/db-provider';
 import type { Template } from '@/types/models';
@@ -17,8 +18,6 @@ type IngredientInput = {
   amount: string;
   unit: string;
 };
-
-const suggestedTags = ['Quick', 'Healthy', 'Spicy', 'Vegetarian', 'Dessert', 'Breakfast'];
 
 export function AddRecipeScreen() {
   const { colors, spacing, radius, typography } = useAppTheme();
@@ -32,7 +31,7 @@ export function AddRecipeScreen() {
   const [time, setTime] = useState('');
   const [servings, setServings] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState('');
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
     { id: 'ing-1', item: '', amount: '', unit: 'cup' },
   ]);
@@ -40,16 +39,20 @@ export function AddRecipeScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch templates from database using repository
-  const fetchTemplates = useCallback(async () => {
+  // Fetch templates and all tags from database
+  const fetchData = useCallback(async () => {
     try {
-      const data = await templateRepository.getAll();
-      setTemplates(data);
-      if (data.length > 0) {
-        setSelectedTemplateId((prev) => prev ?? data[0].id);
+      const [templatesData, tagsData] = await Promise.all([
+        templateRepository.getAll(),
+        recipeRepository.getAllTags(),
+      ]);
+      setTemplates(templatesData);
+      setAllTags(tagsData);
+      if (templatesData.length > 0) {
+        setSelectedTemplateId((prev) => prev ?? templatesData[0].id);
       }
     } catch (err) {
-      console.error('Error fetching templates:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setIsLoading(false);
     }
@@ -57,28 +60,18 @@ export function AddRecipeScreen() {
 
   useEffect(() => {
     if (isReady) {
-      fetchTemplates();
+      fetchData();
     }
-  }, [isReady, fetchTemplates]);
+  }, [isReady, fetchData]);
 
-  // Refresh templates when screen comes into focus
+  // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (isReady) {
-        fetchTemplates();
+        fetchData();
       }
-    }, [isReady, fetchTemplates])
+    }, [isReady, fetchData])
   );
-
-  const addTag = (tag: string) => {
-    if (!tag || tags.includes(tag)) return;
-    setTags((prev) => [...prev, tag]);
-    setNewTag('');
-  };
-
-  const removeTag = (tag: string) => {
-    setTags((prev) => prev.filter((item) => item !== tag));
-  };
 
   const addIngredient = () => {
     setIngredients((prev) => [
@@ -218,24 +211,6 @@ export function AddRecipeScreen() {
           color: colors.textInverted,
           fontWeight: '600',
         },
-        tagRow: {
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: spacing.sm,
-        },
-        tag: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.xs,
-          paddingHorizontal: spacing.md,
-          paddingVertical: 6,
-          borderRadius: radius.pill,
-          backgroundColor: colors.tagBg,
-        },
-        tagText: {
-          color: colors.tagText,
-          ...typography.footnote,
-        },
         ingredientRow: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -362,32 +337,12 @@ export function AddRecipeScreen() {
 
         <View>
           <Text style={styles.fieldLabel}>Tags</Text>
-          <View style={styles.tagRow}>
-            {tags.map((tag) => (
-              <Pressable key={tag} onPress={() => removeTag(tag)} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-                <Ionicons name="close" size={12} color={colors.textSecondary} />
-              </Pressable>
-            ))}
-            {tags.length === 0 && (
-              <Text style={{ color: colors.textTertiary, ...typography.subheadline }}>No tags yet</Text>
-            )}
-          </View>
-          <TextInput
-            value={newTag}
-            onChangeText={setNewTag}
-            placeholder="Add tag"
-            placeholderTextColor={colors.textTertiary}
-            style={[styles.input, { marginTop: spacing.sm }]}
-            onSubmitEditing={() => addTag(newTag.trim())}
+          <TagInput
+            tags={tags}
+            onTagsChange={setTags}
+            allTags={allTags}
+            placeholder="Type to search or create tags..."
           />
-          <View style={[styles.tagRow, { marginTop: spacing.sm }]}>
-            {suggestedTags.map((tag) => (
-              <Pressable key={tag} onPress={() => addTag(tag)} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </Pressable>
-            ))}
-          </View>
         </View>
 
         <View>

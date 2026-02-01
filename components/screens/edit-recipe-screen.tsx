@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { TagInput } from '@/components/ui/tag-input';
 import { recipeRepository } from '@/lib/repositories';
 import { useDatabase } from '@/lib/db-provider';
 import type { Ingredient, InstructionSection } from '@/types/models';
@@ -18,7 +19,7 @@ type IngredientInput = {
   unit: string;
 };
 
-const suggestedTags = ['Quick', 'Healthy', 'Spicy', 'Vegetarian', 'Dessert', 'Breakfast'];
+
 
 export function EditRecipeScreen() {
   const { colors, spacing, radius, typography } = useAppTheme();
@@ -31,7 +32,7 @@ export function EditRecipeScreen() {
   const [time, setTime] = useState('');
   const [servings, setServings] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState('');
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<IngredientInput[]>([]);
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -45,18 +46,23 @@ export function EditRecipeScreen() {
     instructionSections: InstructionSection[];
   } | null>(null);
 
-  // Fetch recipe data
+  // Fetch recipe data and all tags
   useEffect(() => {
     if (!isReady || !id) return;
 
-    const fetchRecipe = async () => {
+    const fetchData = async () => {
       try {
-        const recipe = await recipeRepository.getById(id as string);
+        const [recipe, tagsData] = await Promise.all([
+          recipeRepository.getById(id as string),
+          recipeRepository.getAllTags(),
+        ]);
+
         if (recipe) {
           setRecipeName(recipe.title);
           setTime(recipe.time);
           setServings(recipe.servings.toString());
           setTags(recipe.tags);
+          setAllTags(tagsData);
           setIngredients(
             recipe.ingredients.map((ing) => ({
               id: ing.id,
@@ -76,24 +82,14 @@ export function EditRecipeScreen() {
           });
         }
       } catch (err) {
-        console.error('Error fetching recipe:', err);
+        console.error('Error fetching data:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRecipe();
+    fetchData();
   }, [isReady, id]);
-
-  const addTag = (tag: string) => {
-    if (!tag || tags.includes(tag)) return;
-    setTags((prev) => [...prev, tag]);
-    setNewTag('');
-  };
-
-  const removeTag = (tag: string) => {
-    setTags((prev) => prev.filter((item) => item !== tag));
-  };
 
   const addIngredient = () => {
     setIngredients((prev) => [
@@ -273,24 +269,6 @@ export function EditRecipeScreen() {
           flexDirection: 'row',
           gap: spacing.md,
         },
-        tagRow: {
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: spacing.sm,
-        },
-        tag: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.xs,
-          paddingHorizontal: spacing.md,
-          paddingVertical: 6,
-          borderRadius: radius.pill,
-          backgroundColor: colors.tagBg,
-        },
-        tagText: {
-          color: colors.tagText,
-          ...typography.footnote,
-        },
         ingredientRow: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -435,32 +413,12 @@ export function EditRecipeScreen() {
         {/* Tags */}
         <View>
           <Text style={styles.fieldLabel}>Tags</Text>
-          <View style={styles.tagRow}>
-            {tags.map((tag) => (
-              <Pressable key={tag} onPress={() => removeTag(tag)} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-                <Ionicons name="close" size={12} color={colors.textSecondary} />
-              </Pressable>
-            ))}
-            {tags.length === 0 && (
-              <Text style={{ color: colors.textTertiary, ...typography.subheadline }}>No tags yet</Text>
-            )}
-          </View>
-          <TextInput
-            value={newTag}
-            onChangeText={setNewTag}
-            placeholder="Add tag"
-            placeholderTextColor={colors.textTertiary}
-            style={[styles.input, { marginTop: spacing.sm }]}
-            onSubmitEditing={() => addTag(newTag.trim())}
+          <TagInput
+            tags={tags}
+            onTagsChange={setTags}
+            allTags={allTags}
+            placeholder="Type to search or create tags..."
           />
-          <View style={[styles.tagRow, { marginTop: spacing.sm }]}>
-            {suggestedTags.map((tag) => (
-              <Pressable key={tag} onPress={() => addTag(tag)} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </Pressable>
-            ))}
-          </View>
         </View>
 
         {/* Ingredients */}
