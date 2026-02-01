@@ -100,7 +100,7 @@ const DUMMY_RECIPES = [
       { name: 'sugar', amount: 3/4, unit: 'cup', orderIndex: 4 },
       { name: 'large egg, beaten', amount: 1, unit: '', orderIndex: 5 },
       { name: 'vanilla extract', amount: 1, unit: 'tsp', orderIndex: 6 },
-      { name: 'all-purpose flour', amount: 1.5, unit: 'cups', orderIndex: 7 },
+      { name: 'all-purpose flour', amount: 1.5, unit: 'cup', orderIndex: 7 },
     ],
     sections: {
       Preparation:
@@ -125,7 +125,7 @@ const DUMMY_RECIPES = [
     imageWidth: 900,
     imageHeight: 600,
     ingredients: [
-      { name: 'all-purpose flour', amount: 2.25, unit: 'cups', orderIndex: 0 },
+      { name: 'all-purpose flour', amount: 2.25, unit: 'cup', orderIndex: 0 },
       { name: 'baking soda', amount: 1, unit: 'tsp', orderIndex: 1 },
       { name: 'salt', amount: 1, unit: 'tsp', orderIndex: 2 },
       { name: 'butter, softened', amount: 1, unit: 'cup', orderIndex: 3 },
@@ -133,7 +133,7 @@ const DUMMY_RECIPES = [
       { name: 'packed brown sugar', amount: 0.75, unit: 'cup', orderIndex: 5 },
       { name: 'vanilla extract', amount: 1, unit: 'tsp', orderIndex: 6 },
       { name: 'large eggs', amount: 2, unit: '', orderIndex: 7 },
-      { name: 'chocolate chips', amount: 2, unit: 'cups', orderIndex: 8 },
+      { name: 'chocolate chips', amount: 2, unit: 'cup', orderIndex: 8 },
     ],
     sections: {
       Preparation:
@@ -191,7 +191,7 @@ const DUMMY_RECIPES = [
     imageWidth: 1080,
     imageHeight: 720,
     ingredients: [
-      { name: 'cooked rice, preferably day-old', amount: 3, unit: 'cups', orderIndex: 0 },
+      { name: 'cooked rice, preferably day-old', amount: 3, unit: 'cup', orderIndex: 0 },
       { name: 'vegetable oil', amount: 2, unit: 'tbsp', orderIndex: 1 },
       { name: 'eggs, beaten', amount: 2, unit: '', orderIndex: 2 },
       { name: 'frozen peas and carrots', amount: 1, unit: 'cup', orderIndex: 3 },
@@ -322,8 +322,8 @@ export async function seedDatabase(): Promise<void> {
       for (const ingredient of recipe.ingredients) {
         const ingredientId = generateId();
         await db.runAsync(
-          `INSERT INTO recipe_ingredients (id, recipe_id, name, amount, unit) VALUES (?, ?, ?, ?, ?)`,
-          [ingredientId, recipeId, ingredient.name, ingredient.amount ?? null, ingredient.unit ?? null]
+          `INSERT INTO recipe_ingredients (id, recipe_id, name, amount, unit, order_index) VALUES (?, ?, ?, ?, ?, ?)`,
+          [ingredientId, recipeId, ingredient.name, ingredient.amount ?? null, ingredient.unit ?? null, ingredient.orderIndex]
         );
       }
 

@@ -11,12 +11,12 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { useAIConfiguration } from './hooks';
 import {
-  useAIConfiguration,
   MainView,
   ModelSelectionScreen,
   ModelRoleSelectionScreen,
-} from '.';
+} from './views';
 
 /**
  * AIConfigurationScreen - Main screen for configuring AI providers and models

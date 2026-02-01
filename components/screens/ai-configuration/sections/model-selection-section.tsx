@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import type { AISettings, ProviderId } from '@/hooks/use-ai';
+import { ProviderIcon } from '../components/provider-icon';
 
 type ModelSelectionSectionProps = {
   settings: AISettings | null;
@@ -108,11 +109,13 @@ export function ModelSelectionSection({
         >
           {/* Primary Model Info */}
           {primaryModel && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Ionicons name="sparkles" size={16} color={colors.accent} />
-              <Text style={{ ...typography.footnote, color: colors.textSecondary }}>
-                Primary:
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, width: 100 }}>
+                <Ionicons name="sparkles" size={16} color={colors.accent} />
+                <Text style={{ ...typography.footnote, color: colors.textSecondary }}>
+                  Primary:
+                </Text>
+              </View>
               <Text
                 style={{ ...typography.callout, color: colors.textPrimary, flex: 1 }}
                 numberOfLines={1}
@@ -120,16 +123,21 @@ export function ModelSelectionSection({
               >
                 {primaryModel.name || primaryModel.modelId}
               </Text>
+              <View style={{ width: 24, alignItems: 'center' }}>
+                <ProviderIcon provider={primaryModel.provider} size={16} />
+              </View>
             </View>
           )}
 
           {/* Secondary Model Info */}
           {secondaryModel && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Ionicons name="flash" size={16} color={colors.warning} />
-              <Text style={{ ...typography.footnote, color: colors.textSecondary }}>
-                Secondary:
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, width: 100 }}>
+                <Ionicons name="flash" size={16} color={colors.warning} />
+                <Text style={{ ...typography.footnote, color: colors.textSecondary }}>
+                  Secondary:
+                </Text>
+              </View>
               <Text
                 style={{ ...typography.callout, color: colors.textPrimary, flex: 1 }}
                 numberOfLines={1}
@@ -137,6 +145,9 @@ export function ModelSelectionSection({
               >
                 {secondaryModel.name || secondaryModel.modelId}
               </Text>
+              <View style={{ width: 24, alignItems: 'center' }}>
+                <ProviderIcon provider={secondaryModel.provider} size={16} />
+              </View>
             </View>
           )}
         </View>
@@ -144,3 +155,5 @@ export function ModelSelectionSection({
     </View>
   );
 }
+
+

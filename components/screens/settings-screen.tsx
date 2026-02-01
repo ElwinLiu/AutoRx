@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { clearCache } from '@/lib/cache';
+import { resetDatabase } from '@/lib/db';
 
 const SECTIONS = [
   [
@@ -28,6 +29,7 @@ const SECTIONS = [
   [
     { label: 'About', icon: 'information-circle-outline' },
     { label: 'Clear Cache', icon: 'trash-outline', danger: true, action: 'clear-cache' },
+    { label: 'Reset Database', icon: 'warning-outline', danger: true, action: 'reset-database' },
   ],
 ];
 
@@ -36,6 +38,35 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [isClearing, setIsClearing] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetDatabase = useCallback(async () => {
+    Alert.alert(
+      'Reset Database',
+      'This will delete ALL data including recipes, templates, and settings. This action cannot be undone. Are you sure?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResetting(true);
+            try {
+              await resetDatabase();
+              Alert.alert('Success', 'Database has been reset. Please restart the app.');
+            } catch {
+              Alert.alert('Error', 'Failed to reset database.');
+            } finally {
+              setIsResetting(false);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
 
   const handleClearCache = useCallback(async () => {
     Alert.alert(
@@ -72,6 +103,8 @@ export function SettingsScreen() {
   const handleRowPress = (route?: string, action?: string) => {
     if (action === 'clear-cache') {
       handleClearCache();
+    } else if (action === 'reset-database') {
+      handleResetDatabase();
     } else if (route) {
       router.push(route as Parameters<typeof router.push>[0]);
     }
@@ -163,7 +196,7 @@ export function SettingsScreen() {
                   pressed && { opacity: 0.7, backgroundColor: colors.surfaceSecondary },
                 ]}
                 onPress={() => handleRowPress(item.route, item.action)}
-                disabled={isClearing && item.action === 'clear-cache'}
+                disabled={(isClearing && item.action === 'clear-cache') || (isResetting && item.action === 'reset-database')}
               >
                 <View style={styles.rowLeft}>
                   <Ionicons
@@ -174,7 +207,7 @@ export function SettingsScreen() {
                   <Text style={[styles.label, item.danger && styles.danger]}>{item.label}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                  {isClearing && item.action === 'clear-cache' ? (
+                  {((isClearing && item.action === 'clear-cache') || (isResetting && item.action === 'reset-database')) ? (
                     <ActivityIndicator size="small" color={colors.error} />
                   ) : (
                     <>

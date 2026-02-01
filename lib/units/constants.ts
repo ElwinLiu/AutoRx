@@ -94,6 +94,11 @@ export function getUnitsByCategory(category: string): UnitDefinition[] {
   }
 }
 
+// Get all convertible units (weight + volume, excluding count)
+export function getAllConvertibleUnits(): UnitDefinition[] {
+  return [...WEIGHT_UNITS, ...VOLUME_UNITS];
+}
+
 // Get unit definition by ID
 function getUnitById(unitId: string): UnitDefinition | undefined {
   return ALL_UNITS.find((u) => u.id === unitId);

@@ -12,7 +12,6 @@ export type ConversionResult = {
   amount: number;
   unit: string;
   isEstimated: boolean;
-  note?: string;
 };
 
 export type CategoryOption = {

@@ -1,5 +1,5 @@
 import { ConversionResult } from './types';
-import { CONVERSION_FACTORS } from './constants';
+import { CONVERSION_FACTORS, getUnitCategory } from './constants';
 import { convertWithAI } from './ai-converter';
 
 /**
@@ -29,6 +29,8 @@ export function formatConvertedAmount(amount: number): string {
 
 /**
  * Convert between units using lookup table or AI fallback
+ * Only uses lookup table for same-category conversions
+ * Cross-category conversions always use AI
  */
 export async function convertUnit(
   amount: number,
@@ -45,20 +47,27 @@ export async function convertUnit(
     };
   }
 
-  // Check if both units have conversion factors (same category conversion)
-  const fromFactor = CONVERSION_FACTORS[fromUnit];
-  const toFactor = CONVERSION_FACTORS[toUnit];
+  // Check if units are in the same category
+  const fromCategory = getUnitCategory(fromUnit);
+  const toCategory = getUnitCategory(toUnit);
 
-  if (fromFactor && toFactor) {
-    // Both units are in the lookup table - direct conversion
-    const baseAmount = amount * fromFactor;
-    const convertedAmount = baseAmount / toFactor;
+  // Only use lookup table for weight or volume conversions within the same category
+  // Count units always require AI (we don't know the size/weight of items)
+  if (fromCategory === toCategory && fromCategory !== 'count') {
+    const fromFactor = CONVERSION_FACTORS[fromUnit];
+    const toFactor = CONVERSION_FACTORS[toUnit];
 
-    return {
-      amount: roundForDisplay(convertedAmount),
-      unit: toUnit,
-      isEstimated: false,
-    };
+    if (fromFactor && toFactor) {
+      // Both units are in the lookup table - direct conversion
+      const baseAmount = amount * fromFactor;
+      const convertedAmount = baseAmount / toFactor;
+
+      return {
+        amount: roundForDisplay(convertedAmount),
+        unit: toUnit,
+        isEstimated: false,
+      };
+    }
   }
 
   // Cross-category conversion or unknown units - use AI
@@ -67,20 +76,36 @@ export async function convertUnit(
 
 /**
  * Check if a conversion can be done via lookup table (no AI needed)
+ * Only allows conversions within weight or volume categories
+ * Count units and cross-category conversions always require AI
  */
 export function canConvertViaLookup(fromUnit: string, toUnit: string): boolean {
   if (fromUnit === toUnit) return true;
 
+  const fromCategory = getUnitCategory(fromUnit);
+  const toCategory = getUnitCategory(toUnit);
+
+  // If categories don't match, must use AI (cross-category conversion)
+  if (fromCategory !== toCategory) {
+    return false;
+  }
+
+  // Count units always require AI (we don't know the size/weight of items)
+  if (fromCategory === 'count') {
+    return false;
+  }
+
   const fromFactor = CONVERSION_FACTORS[fromUnit];
   const toFactor = CONVERSION_FACTORS[toUnit];
 
-  // Both units must exist in the conversion table
+  // Both units must exist in the conversion table and be in the same category
   return !!(fromFactor && toFactor);
 }
 
 /**
  * Get the conversion preview (for UI display before applying)
  * Returns null if AI conversion is needed (async)
+ * Only returns preview for same-category conversions
  */
 function getConversionPreview(
   amount: number,
@@ -95,18 +120,26 @@ function getConversionPreview(
     };
   }
 
-  const fromFactor = CONVERSION_FACTORS[fromUnit];
-  const toFactor = CONVERSION_FACTORS[toUnit];
+  // Check if units are in the same category
+  const fromCategory = getUnitCategory(fromUnit);
+  const toCategory = getUnitCategory(toUnit);
 
-  if (fromFactor && toFactor) {
-    const baseAmount = amount * fromFactor;
-    const convertedAmount = baseAmount / toFactor;
+  // Only use lookup table for weight or volume conversions within the same category
+  // Count units always require AI (we don't know the size/weight of items)
+  if (fromCategory === toCategory && fromCategory !== 'count') {
+    const fromFactor = CONVERSION_FACTORS[fromUnit];
+    const toFactor = CONVERSION_FACTORS[toUnit];
 
-    return {
-      amount: roundForDisplay(convertedAmount),
-      unit: toUnit,
-      isEstimated: false,
-    };
+    if (fromFactor && toFactor) {
+      const baseAmount = amount * fromFactor;
+      const convertedAmount = baseAmount / toFactor;
+
+      return {
+        amount: roundForDisplay(convertedAmount),
+        unit: toUnit,
+        isEstimated: false,
+      };
+    }
   }
 
   // AI conversion needed - return null (caller should handle async)

@@ -98,11 +98,9 @@ export function ProviderItem({
               width: 44,
               height: 44,
               borderRadius: radius.lg,
-              backgroundColor: isVerified ? colors.success + '15' : colors.surfaceSecondary,
+              backgroundColor: colors.surfaceSecondary,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: isVerified ? 1 : 0,
-              borderColor: isVerified ? colors.success + '30' : 'transparent',
             }}
           >
             <ProviderIcon provider={provider} size={24} />

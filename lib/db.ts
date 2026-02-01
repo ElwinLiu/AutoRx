@@ -52,11 +52,14 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
   recipe_id TEXT NOT NULL REFERENCES recipes(id),
   name TEXT NOT NULL,
   amount REAL,
-  unit TEXT
+  unit TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
   ON recipe_ingredients(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_ingredients_order
+  ON recipe_ingredients(recipe_id, order_index);
 
 CREATE TABLE IF NOT EXISTS recipe_sections (
   id TEXT PRIMARY KEY,
@@ -263,57 +266,46 @@ async function migrateRecipeIngredientsTable(db: SQLiteDatabase): Promise<void> 
     if (columnNames.length === 0) return;
 
     const hasTextColumn = columnNames.includes('text');
-    const hasOrderIndex = columnNames.includes('order_index');
 
-    // Already on the new schema (no text column, no order_index)
-    if (!hasTextColumn && !hasOrderIndex) {
+    // Already on the new schema (no text column)
+    if (!hasTextColumn) {
       return;
     }
 
-    // Drop temp table if exists from previous failed attempt
+    // Migrate from old schema with text column
     await db.execAsync(`DROP TABLE IF EXISTS recipe_ingredients_new;`);
 
-    // Create new table with correct schema (without FK constraint initially to avoid issues)
     await db.execAsync(`
       CREATE TABLE recipe_ingredients_new (
         id TEXT PRIMARY KEY,
         recipe_id TEXT NOT NULL,
         name TEXT NOT NULL,
         amount REAL,
-        unit TEXT
+        unit TEXT,
+        order_index INTEGER NOT NULL DEFAULT 0
       );
     `);
 
-    if (hasTextColumn) {
-      // Migrate from old schema with text column
-      await db.execAsync(`
-        INSERT INTO recipe_ingredients_new (id, recipe_id, name, amount, unit)
-        SELECT id, recipe_id,
-          CASE
-            WHEN text LIKE '% % %' THEN substr(text, instr(substr(text, instr(text, ' ') + 1), ' ') + instr(text, ' ') + 1)
-            ELSE text
-          END as name,
-          CASE
-            WHEN text LIKE '% %' THEN CAST(substr(text, 1, instr(text, ' ') - 1) AS REAL)
-            ELSE NULL
-          END as amount,
-          CASE
-            WHEN text LIKE '% % %' THEN substr(substr(text, instr(text, ' ') + 1), 1, instr(substr(text, instr(text, ' ') + 1), ' ') - 1)
-            WHEN text LIKE '% %' THEN substr(text, instr(text, ' ') + 1)
-            ELSE NULL
-          END as unit
-        FROM recipe_ingredients;
-      `);
-    } else {
-      // Just remove order_index
-      await db.execAsync(`
-        INSERT INTO recipe_ingredients_new (id, recipe_id, name, amount, unit)
-        SELECT id, recipe_id, name, amount, unit
-        FROM recipe_ingredients;
-      `);
-    }
+    await db.execAsync(`
+      INSERT INTO recipe_ingredients_new (id, recipe_id, name, amount, unit, order_index)
+      SELECT id, recipe_id,
+        CASE
+          WHEN text LIKE '% % %' THEN substr(text, instr(substr(text, instr(text, ' ') + 1), ' ') + instr(text, ' ') + 1)
+          ELSE text
+        END as name,
+        CASE
+          WHEN text LIKE '% %' THEN CAST(substr(text, 1, instr(text, ' ') - 1) AS REAL)
+          ELSE NULL
+        END as amount,
+        CASE
+          WHEN text LIKE '% % %' THEN substr(substr(text, instr(text, ' ') + 1), 1, instr(substr(text, instr(text, ' ') + 1), ' ') - 1)
+          WHEN text LIKE '% %' THEN substr(text, instr(text, ' ') + 1)
+          ELSE NULL
+        END as unit,
+        0 as order_index
+      FROM recipe_ingredients;
+    `);
 
-    // Drop old table and rename new one
     await db.execAsync(`DROP TABLE recipe_ingredients;`);
     await db.execAsync(`ALTER TABLE recipe_ingredients_new RENAME TO recipe_ingredients;`);
   } catch (error) {
@@ -401,6 +393,8 @@ async function ensureIndexes(db: SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_recipes_fav_updated ON recipes(favorite, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
       ON recipe_ingredients(recipe_id);
+    CREATE INDEX IF NOT EXISTS idx_ingredients_order
+      ON recipe_ingredients(recipe_id, order_index);
     CREATE INDEX IF NOT EXISTS idx_sections_recipe
       ON recipe_sections(recipe_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_nocase
@@ -414,5 +408,28 @@ export async function closeDatabase(): Promise<void> {
   if (dbInstance) {
     await dbInstance.closeAsync();
     dbInstance = null;
+  }
+}
+
+const DROP_TABLES_SQL = `
+DROP TABLE IF EXISTS recipe_tags;
+DROP TABLE IF EXISTS recipe_sections;
+DROP TABLE IF EXISTS recipe_ingredients;
+DROP TABLE IF EXISTS recipes;
+DROP TABLE IF EXISTS template_sections;
+DROP TABLE IF EXISTS templates;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS settings;
+`;
+
+export async function resetDatabase(): Promise<void> {
+  const db = await getDatabase();
+
+  await db.execAsync('PRAGMA foreign_keys = OFF;');
+  try {
+    await db.execAsync(DROP_TABLES_SQL);
+    await db.execAsync(CREATE_TABLES_SQL);
+  } finally {
+    await db.execAsync('PRAGMA foreign_keys = ON;');
   }
 }

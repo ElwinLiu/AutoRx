@@ -1,5 +1,5 @@
 import { ConversionResult } from './types';
-import { getUnitCategory } from './constants';
+import { getUnitCategory, CONVERSION_FACTORS } from './constants';
 import { convertUnitsWithAI } from '@/lib/ai/usecases/unit-conversion';
 
 /**
@@ -42,8 +42,7 @@ export async function convertWithAI(
     return {
       amount: roundForDisplay(result.amount),
       unit: result.unit || toUnit,
-      isEstimated: result.isEstimated,
-      note: result.note,
+      isEstimated: true,
     };
   } catch (error) {
     console.error('AI conversion error:', error);
@@ -54,7 +53,6 @@ export async function convertWithAI(
       amount: roundForDisplay(estimatedAmount),
       unit: toUnit,
       isEstimated: true,
-      note: 'AI unavailable, using estimated conversion',
     };
   }
 }
@@ -191,8 +189,6 @@ function estimateConversion(
  * Check if AI conversion is needed
  */
 function needsAIConversion(fromUnit: string, toUnit: string): boolean {
-  const { CONVERSION_FACTORS } = require('./constants');
-
   if (fromUnit === toUnit) return false;
 
   const fromFactor = CONVERSION_FACTORS[fromUnit];
