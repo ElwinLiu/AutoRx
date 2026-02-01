@@ -71,7 +71,7 @@ export function SettingsScreen() {
   const handleClearCache = useCallback(async () => {
     Alert.alert(
       'Clear Cache',
-      'This will clear image cache and temporary data. Your recipes and settings (except AI configuration) will be preserved. Are you sure?',
+      'This will clear image cache, temporary data, and UI hints. Your recipes and AI settings will be preserved. Are you sure?',
       [
         {
           text: 'Cancel',
@@ -83,7 +83,7 @@ export function SettingsScreen() {
           onPress: async () => {
             setIsClearing(true);
             try {
-              const result = await clearCache(['images']);
+              const result = await clearCache(['images', 'ui-hints']);
               if (result.success) {
                 Alert.alert('Success', 'Cache cleared successfully.');
               } else {

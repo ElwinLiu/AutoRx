@@ -1,7 +1,52 @@
 import * as ImagePicker from 'expo-image';
+import * as SecureStore from 'expo-secure-store';
 import { clearAISettings } from './ai/settings';
 
-export type CacheType = 'images' | 'ai-settings' | 'all';
+export type CacheType = 'images' | 'ai-settings' | 'ui-hints' | 'all';
+
+const UI_HINTS_KEY = 'ui_hints_cache';
+
+export type UIHintsCache = {
+  unitConversionDirectDismissed?: boolean;
+  unitConversionEstimateDismissed?: boolean;
+};
+
+/**
+ * Get UI hints cache from secure store
+ */
+export async function getUIHintsCache(): Promise<UIHintsCache> {
+  try {
+    const json = await SecureStore.getItemAsync(UI_HINTS_KEY);
+    return json ? (JSON.parse(json) as UIHintsCache) : {};
+  } catch (error) {
+    console.error('Failed to get UI hints cache:', error);
+    return {};
+  }
+}
+
+/**
+ * Save UI hints cache to secure store
+ */
+export async function saveUIHintsCache(cache: UIHintsCache): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(UI_HINTS_KEY, JSON.stringify(cache));
+  } catch (error) {
+    console.error('Failed to save UI hints cache:', error);
+    throw error;
+  }
+}
+
+/**
+ * Clear UI hints cache
+ */
+export async function clearUIHintsCache(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(UI_HINTS_KEY);
+  } catch (error) {
+    console.error('Failed to clear UI hints cache:', error);
+    throw error;
+  }
+}
 
 export type ClearCacheResult = {
   success: boolean;
@@ -30,6 +75,7 @@ async function clearImageCache(): Promise<void> {
  * Clear all app cache
  * - Image cache (expo-image)
  * - AI settings (secure storage)
+ * - UI hints cache (secure storage)
  */
 export async function clearCache(types: CacheType[] = ['all']): Promise<ClearCacheResult> {
   const cleared: CacheType[] = [];
@@ -56,6 +102,15 @@ export async function clearCache(types: CacheType[] = ['all']): Promise<ClearCac
       }
     }
 
+    if (shouldClear('ui-hints') || shouldClear('all')) {
+      try {
+        await clearUIHintsCache();
+        cleared.push('ui-hints');
+      } catch (error) {
+        errors.push(`UI Hints: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
     return {
       success: errors.length === 0,
       cleared,
@@ -77,12 +132,17 @@ export async function clearCache(types: CacheType[] = ['all']): Promise<ClearCac
 export async function getCacheInfo(): Promise<{
   images: 'unknown' | number;
   aiSettings: boolean;
+  uiHints: boolean;
 }> {
   const { getAISettings } = await import('./ai/settings');
-  const aiSettings = await getAISettings();
+  const [aiSettings, uiHintsCache] = await Promise.all([
+    getAISettings(),
+    getUIHintsCache(),
+  ]);
 
   return {
     images: 'unknown', // expo-image doesn't expose cache size
     aiSettings: aiSettings.apiKey !== null,
+    uiHints: Object.keys(uiHintsCache).length > 0,
   };
 }

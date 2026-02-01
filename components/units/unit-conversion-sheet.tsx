@@ -28,6 +28,7 @@ import {
   canConvertViaLookup,
 } from '@/lib/units/converter';
 import type { UnitDefinition } from '@/lib/units/types';
+import { getUIHintsCache, saveUIHintsCache } from '@/lib/cache';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
@@ -68,12 +69,39 @@ export function UnitConversionSheet({
   const [estimationConversions, setEstimationConversions] = useState<ConversionItem[]>([]);
   const [isLoadingEstimations, setIsLoadingEstimations] = useState(false);
   const [showEstimations, setShowEstimations] = useState(false);
+  const [directHintDismissed, setDirectHintDismissed] = useState(false);
+  const [estimateHintDismissed, setEstimateHintDismissed] = useState(false);
 
   const translateY = useSharedValue(SHEET_HEIGHT);
   const opacity = useSharedValue(0);
   const activeTabIndex = useSharedValue(0);
   const contentTranslateX = useSharedValue(0);
   const contextX = useSharedValue(0);
+
+  // Load hint dismissal state when sheet opens
+  useEffect(() => {
+    if (visible) {
+      const loadHintState = async () => {
+        const cache = await getUIHintsCache();
+        setDirectHintDismissed(cache.unitConversionDirectDismissed ?? false);
+        setEstimateHintDismissed(cache.unitConversionEstimateDismissed ?? false);
+      };
+      loadHintState();
+    }
+  }, [visible]);
+
+  // Handle hint dismissal
+  const handleDismissDirectHint = useCallback(async () => {
+    setDirectHintDismissed(true);
+    const cache = await getUIHintsCache();
+    await saveUIHintsCache({ ...cache, unitConversionDirectDismissed: true });
+  }, []);
+
+  const handleDismissEstimateHint = useCallback(async () => {
+    setEstimateHintDismissed(true);
+    const cache = await getUIHintsCache();
+    await saveUIHintsCache({ ...cache, unitConversionEstimateDismissed: true });
+  }, []);
 
   // Animate in/out - elegant, fast but subtle
   useEffect(() => {
@@ -454,6 +482,25 @@ export function UnitConversionSheet({
         estimatedText: {
           color: colors.warning,
         },
+        hintContainer: {
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          backgroundColor: colors.surfaceSecondary,
+          marginHorizontal: spacing.lg,
+          marginBottom: spacing.sm,
+          borderRadius: radius.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+        },
+        hintText: {
+          ...typography.caption,
+          color: colors.textSecondary,
+          flex: 1,
+        },
+        hintDismissButton: {
+          padding: spacing.xs,
+        },
         footer: {
           padding: spacing.md,
           paddingBottom: spacing.lg,
@@ -554,6 +601,15 @@ export function UnitConversionSheet({
               <Animated.View style={[styles.contentContainer, contentAnimatedStyle]}>
                 {/* Direct Tab */}
                 <View style={styles.contentTab}>
+                  {!directHintDismissed && (
+                    <Pressable onPress={handleDismissDirectHint} style={styles.hintContainer}>
+                      <Ionicons name="information-circle-outline" size={14} color={colors.textSecondary} />
+                      <Text style={styles.hintText}>Tap a unit to convert using standard conversion rates</Text>
+                      <View style={styles.hintDismissButton}>
+                        <Ionicons name="close" size={14} color={colors.textTertiary} />
+                      </View>
+                    </Pressable>
+                  )}
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={styles.unitsList}>
                       {directConversions.map((item) => {
@@ -592,6 +648,15 @@ export function UnitConversionSheet({
 
                 {/* Estimate Tab */}
                 <View style={styles.contentTab}>
+                  {!estimateHintDismissed && (
+                    <Pressable onPress={handleDismissEstimateHint} style={styles.hintContainer}>
+                      <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
+                      <Text style={styles.hintText}>Tap a unit to have AI estimate the conversion for this ingredient</Text>
+                      <View style={styles.hintDismissButton}>
+                        <Ionicons name="close" size={14} color={colors.textTertiary} />
+                      </View>
+                    </Pressable>
+                  )}
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={styles.unitsList}>
                       {estimationConversions.map((item) => {
