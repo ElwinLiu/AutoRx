@@ -24,7 +24,7 @@ export function DevSeedButton({ onSeedComplete }: DevSeedButtonProps) {
   const handleSeed = useCallback(async () => {
     Alert.alert(
       'Seed Database?',
-      'This will clear all existing data and insert default templates and recipes.',
+      'This will clear all existing data and insert default recipes.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

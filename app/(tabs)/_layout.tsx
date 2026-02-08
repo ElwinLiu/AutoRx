@@ -12,13 +12,6 @@ export default function TabLayout() {
           androidSrc={<VectorIcon family={MaterialIcons} name="menu-book" />}
         />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="templates">
-        <Label>Templates</Label>
-        <Icon
-          sf={{ default: 'square.stack.3d.up', selected: 'square.stack.3d.up.fill' }}
-          androidSrc={<VectorIcon family={MaterialIcons} name="layers" />}
-        />
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Label>Settings</Label>
         <Icon

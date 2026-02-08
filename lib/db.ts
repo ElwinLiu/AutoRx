@@ -5,30 +5,6 @@ const DB_NAME = 'autorx.db';
 const CREATE_TABLES_SQL = `
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE IF NOT EXISTS templates (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  deleted_at INTEGER
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_templates_name_nocase
-  ON templates(name COLLATE NOCASE);
-
-CREATE TABLE IF NOT EXISTS template_sections (
-  id TEXT PRIMARY KEY,
-  template_id TEXT NOT NULL REFERENCES templates(id),
-  name TEXT NOT NULL,
-  order_index INTEGER NOT NULL,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  UNIQUE(template_id, name COLLATE NOCASE)
-);
-
-CREATE INDEX IF NOT EXISTS idx_template_sections_order
-  ON template_sections(template_id, order_index);
-
 CREATE TABLE IF NOT EXISTS recipes (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -117,12 +93,12 @@ async function runMigrations(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = OFF;');
 
   try {
-    await migrateRecipesTable(db);
-    await migrateRecipeSectionsTable(db);
-    await migrateRecipeIngredientsTable(db);
-    await ensureCaseInsensitiveTags(db);
-    await ensureCaseInsensitiveTemplates(db);
-    await ensureIndexes(db);
+  await migrateRecipesTable(db);
+  await migrateRecipeSectionsTable(db);
+  await migrateRecipeIngredientsTable(db);
+  await ensureCaseInsensitiveTags(db);
+  await dropTemplateTables(db);
+  await ensureIndexes(db);
   } finally {
     await db.execAsync('PRAGMA foreign_keys = ON;');
   }
@@ -344,51 +320,15 @@ async function ensureCaseInsensitiveTags(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-async function ensureCaseInsensitiveTemplates(db: SQLiteDatabase): Promise<void> {
-  try {
-    const templates = await db.getAllAsync<{ id: string; name: string }>(
-      'SELECT id, name FROM templates'
-    );
-
-    const usedNames = new Set<string>(templates.map((t) => t.name.toLowerCase()));
-    const byLower = new Map<string, Array<{ id: string; name: string }>>();
-
-    for (const template of templates) {
-      const key = template.name.toLowerCase();
-      const list = byLower.get(key) ?? [];
-      list.push(template);
-      byLower.set(key, list);
-    }
-
-    for (const [, list] of byLower) {
-      if (list.length <= 1) continue;
-
-      const baseName = list[0].name;
-      let suffix = 2;
-
-      for (const dup of list.slice(1)) {
-        let newName = `${baseName} (${suffix})`;
-        while (usedNames.has(newName.toLowerCase())) {
-          suffix += 1;
-          newName = `${baseName} (${suffix})`;
-        }
-
-        await db.runAsync('UPDATE templates SET name = ? WHERE id = ?', [newName, dup.id]);
-        usedNames.add(newName.toLowerCase());
-        suffix += 1;
-      }
-    }
-  } catch (error) {
-    console.error('Migration error for templates dedupe:', error);
-  }
+async function dropTemplateTables(db: SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    DROP TABLE IF EXISTS template_sections;
+    DROP TABLE IF EXISTS templates;
+  `);
 }
 
 async function ensureIndexes(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_templates_name_nocase
-      ON templates(name COLLATE NOCASE);
-    CREATE INDEX IF NOT EXISTS idx_template_sections_order
-      ON template_sections(template_id, order_index);
     CREATE INDEX IF NOT EXISTS idx_recipes_updated ON recipes(updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_recipes_fav_updated ON recipes(favorite, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_ingredients_recipe
@@ -416,8 +356,6 @@ DROP TABLE IF EXISTS recipe_tags;
 DROP TABLE IF EXISTS recipe_sections;
 DROP TABLE IF EXISTS recipe_ingredients;
 DROP TABLE IF EXISTS recipes;
-DROP TABLE IF EXISTS template_sections;
-DROP TABLE IF EXISTS templates;
 DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS settings;
 `;

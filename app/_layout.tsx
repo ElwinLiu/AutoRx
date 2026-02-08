@@ -20,8 +20,6 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="recipe/add" options={{ headerShown: false }} />
-          <Stack.Screen name="template/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="template/new" options={{ headerShown: false }} />
           <Stack.Screen name="settings/ai" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />

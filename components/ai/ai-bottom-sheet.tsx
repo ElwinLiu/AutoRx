@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
-type AIContext = 'recipes-list' | 'recipe-detail' | 'template' | 'import' | 'settings';
+type AIContext = 'recipes-list' | 'recipe-detail' | 'import' | 'settings';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -21,9 +21,8 @@ type AIBottomSheetProps = {
 
 const suggestions: Record<AIContext, string[]> = {
   'recipe-detail': ['Halve portions', 'Make it vegan', 'Convert to metric', 'Add air fryer steps'],
-  template: ['Add Nutrition section', 'Reorder fields', 'Make Ingredients required'],
   'recipes-list': ['Find recipes with chicken', 'Create from pasted text'],
-  import: ['Extract ingredients', 'Format steps', 'Detect template'],
+  import: ['Extract ingredients', 'Format steps', 'Detect sections'],
   settings: ['Explain storage', 'Export my data', 'Help with import'],
 };
 

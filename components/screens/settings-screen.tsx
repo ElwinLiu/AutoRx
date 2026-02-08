@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { clearCache } from '@/lib/cache';
 import { resetDatabase } from '@/lib/db';
+import { DevSeedButton } from '@/components/dev/dev-seed-button';
 
 const SECTIONS = [
   [
@@ -43,7 +44,7 @@ export function SettingsScreen() {
   const handleResetDatabase = useCallback(async () => {
     Alert.alert(
       'Reset Database',
-      'This will delete ALL data including recipes, templates, and settings. This action cannot be undone. Are you sure?',
+      'This will delete ALL data including recipes and settings. This action cannot be undone. Are you sure?',
       [
         {
           text: 'Cancel',
@@ -224,6 +225,7 @@ export function SettingsScreen() {
         </View>
       ))}
 
+      <DevSeedButton />
       <Text style={styles.version}>Recipe Organizer v1.0.0</Text>
     </ScrollView>
   );

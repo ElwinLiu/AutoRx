@@ -26,11 +26,3 @@ export type Recipe = {
   ingredients: Ingredient[];
   instructionSections: InstructionSection[];
 };
-
-export type Template = {
-  id: string;
-  name: string;
-  instructionSections: { id: string; name: string }[];
-  lastEdited?: string;
-  isDefault?: boolean;
-};

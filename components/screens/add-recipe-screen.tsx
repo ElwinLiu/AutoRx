@@ -8,9 +8,9 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 import { AnimatedIconButton } from '@/components/ui/animated-icon-button';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { TagInput } from '@/components/ui/tag-input';
-import { templateRepository, recipeRepository } from '@/lib/repositories';
+import { recipeRepository } from '@/lib/repositories';
 import { useDatabase } from '@/lib/db-provider';
-import type { Template } from '@/types/models';
+import type { InstructionSection } from '@/types/models';
 
 type IngredientInput = {
   id: string;
@@ -25,9 +25,7 @@ export function AddRecipeScreen() {
   const router = useRouter();
   const { isReady, error } = useDatabase();
 
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [recipeName, setRecipeName] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [time, setTime] = useState('');
   const [servings, setServings] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -35,22 +33,17 @@ export function AddRecipeScreen() {
   const [ingredients, setIngredients] = useState<IngredientInput[]>([
     { id: 'ing-1', item: '', amount: '', unit: 'cup' },
   ]);
-  const [instructions, setInstructions] = useState('');
+  const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([
+    { id: 'section-1', name: 'Instructions', steps: [] },
+  ]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch templates and all tags from database
+  // Fetch all tags from database
   const fetchData = useCallback(async () => {
     try {
-      const [templatesData, tagsData] = await Promise.all([
-        templateRepository.getAll(),
-        recipeRepository.getAllTags(),
-      ]);
-      setTemplates(templatesData);
+      const tagsData = await recipeRepository.getAllTags();
       setAllTags(tagsData);
-      if (templatesData.length > 0) {
-        setSelectedTemplateId((prev) => prev ?? templatesData[0].id);
-      }
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -90,6 +83,33 @@ export function AddRecipeScreen() {
     setIngredients((prev) => prev.filter((ingredient) => ingredient.id !== id));
   };
 
+  const addSection = () => {
+    setInstructionSections((prev) => [
+      ...prev,
+      { id: `section-${Date.now()}`, name: 'New Section', steps: [] },
+    ]);
+  };
+
+  const updateSectionName = (sectionId: string, name: string) => {
+    setInstructionSections((prev) =>
+      prev.map((section) => (section.id === sectionId ? { ...section, name } : section))
+    );
+  };
+
+  const updateSectionSteps = (sectionId: string, stepsText: string) => {
+    setInstructionSections((prev) =>
+      prev.map((section) =>
+        section.id === sectionId
+          ? { ...section, steps: stepsText.split('\n').filter((s) => s.trim()) }
+          : section
+      )
+    );
+  };
+
+  const removeSection = (sectionId: string) => {
+    setInstructionSections((prev) => prev.filter((section) => section.id !== sectionId));
+  };
+
   const handleSave = async () => {
     if (!recipeName.trim()) {
       // Could show an alert here
@@ -97,9 +117,8 @@ export function AddRecipeScreen() {
       return;
     }
 
-    const template = templates.find((t) => t.id === selectedTemplateId);
-    if (!template) {
-      console.warn('Template is required');
+    if (instructionSections.length === 0) {
+      console.warn('At least one instruction section is required');
       return;
     }
 
@@ -122,16 +141,15 @@ export function AddRecipeScreen() {
           unit: ing.unit.trim() || 'piece',
         }));
 
-      // Map instructions to template sections
-      const sections = template.instructionSections.map((section, index) => ({
-        name: section.name,
-        orderIndex: index,
-        content: instructions,
-      }));
+      const sections = instructionSections
+        .filter((section) => section.name.trim())
+        .map((section) => ({
+          name: section.name.trim(),
+          content: section.steps.join('\n'),
+        }));
 
       await recipeRepository.create({
         name: recipeName.trim(),
-        templateName: template.name,
         cookTimeMin,
         servings: servingsNum,
         ingredients: validIngredients,
@@ -193,24 +211,6 @@ export function AddRecipeScreen() {
           flexDirection: 'row',
           gap: spacing.md,
         },
-        templateChip: {
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.sm,
-          borderRadius: radius.pill,
-          backgroundColor: colors.tagBg,
-          marginRight: spacing.sm,
-        },
-        templateChipActive: {
-          backgroundColor: colors.accent,
-        },
-        templateText: {
-          color: colors.tagText,
-          ...typography.footnote,
-        },
-        templateTextActive: {
-          color: colors.textInverted,
-          fontWeight: '600',
-        },
         ingredientRow: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -241,6 +241,56 @@ export function AddRecipeScreen() {
           paddingVertical: spacing.sm,
         },
         addIngredientText: {
+          color: colors.accent,
+          ...typography.body,
+          fontWeight: '600',
+        },
+        sectionCard: {
+          backgroundColor: colors.surfacePrimary,
+          borderRadius: radius.lg,
+          padding: spacing.lg,
+          marginBottom: spacing.md,
+        },
+        sectionInput: {
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          borderRadius: radius.md,
+          borderWidth: 1,
+          borderColor: colors.borderPrimary,
+          backgroundColor: colors.backgroundSecondary,
+          color: colors.textPrimary,
+          ...typography.subheadline,
+          marginBottom: spacing.md,
+        },
+        stepsInput: {
+          minHeight: 120,
+          textAlignVertical: 'top',
+        },
+        sectionActions: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        },
+        sectionHint: {
+          ...typography.caption,
+          color: colors.textTertiary,
+        },
+        removeSection: {
+          paddingHorizontal: spacing.sm,
+          paddingVertical: spacing.xs,
+        },
+        removeSectionText: {
+          color: colors.error,
+          ...typography.footnote,
+          fontWeight: '600',
+        },
+        addSection: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.sm,
+        },
+        addSectionText: {
           color: colors.accent,
           ...typography.body,
           fontWeight: '600',
@@ -291,24 +341,6 @@ export function AddRecipeScreen() {
             placeholderTextColor={colors.textTertiary}
             style={styles.input}
           />
-        </View>
-
-        <View>
-          <Text style={styles.fieldLabel}>Template</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {templates.map((template) => {
-              const isActive = selectedTemplateId === template.id;
-              return (
-                <Pressable
-                  key={template.id}
-                  onPress={() => setSelectedTemplateId(template.id)}
-                  style={[styles.templateChip, isActive && styles.templateChipActive]}
-                >
-                  <Text style={[styles.templateText, isActive && styles.templateTextActive]}>{template.name}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
         </View>
 
         <View style={styles.row}>
@@ -384,14 +416,35 @@ export function AddRecipeScreen() {
 
         <View>
           <Text style={styles.fieldLabel}>Instructions</Text>
-          <TextInput
-            value={instructions}
-            onChangeText={setInstructions}
-            placeholder="Write steps here..."
-            placeholderTextColor={colors.textTertiary}
-            style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]}
-            multiline
-          />
+          {instructionSections.map((section) => (
+            <View key={section.id} style={styles.sectionCard}>
+              <TextInput
+                value={section.name}
+                onChangeText={(value) => updateSectionName(section.id, value)}
+                placeholder="Section Name"
+                placeholderTextColor={colors.textTertiary}
+                style={styles.sectionInput}
+              />
+              <TextInput
+                value={section.steps.join('\n')}
+                onChangeText={(value) => updateSectionSteps(section.id, value)}
+                placeholder="Enter steps, one per line..."
+                placeholderTextColor={colors.textTertiary}
+                style={[styles.input, styles.stepsInput]}
+                multiline
+              />
+              <View style={styles.sectionActions}>
+                <Text style={styles.sectionHint}>Each line will be treated as a separate step</Text>
+                <Pressable onPress={() => removeSection(section.id)} style={styles.removeSection}>
+                  <Text style={styles.removeSectionText}>Remove</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+          <Pressable style={styles.addSection} onPress={addSection}>
+            <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+            <Text style={styles.addSectionText}>Add Instruction Section</Text>
+          </Pressable>
         </View>
 
         <Pressable style={styles.saveButton} onPress={handleSave} disabled={isSaving}>

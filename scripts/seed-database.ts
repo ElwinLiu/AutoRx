@@ -1,7 +1,7 @@
 /**
  * Database Seed Script
  *
- * This script seeds the SQLite database with default templates and dummy recipes.
+ * This script seeds the SQLite database with dummy recipes.
  * It can be run:
  * 1. From within the app (e.g., from a dev menu button)
  * 2. During app initialization
@@ -27,31 +27,10 @@ function now(): number {
   return Date.now();
 }
 
-// Default Templates with their sections
-const DEFAULT_TEMPLATES = [
-  {
-    name: 'Baking',
-    sections: ['Preparation', 'Mixing', 'Baking', 'Cooling'],
-  },
-  {
-    name: '中餐',
-    sections: ['料头', '料汁', '烹饪', '要点'],
-  },
-  {
-    name: 'Quick Weeknight',
-    sections: ['Preparation', 'Cooking'],
-  },
-  {
-    name: 'Meal Prep',
-    sections: ['Preparation', 'Cooking', 'Storage'],
-  },
-];
-
 // Dummy Recipes
 const DUMMY_RECIPES = [
   {
     name: 'Kung Pao Chicken',
-    templateName: '中餐',
     cookTimeMin: 30,
     servings: 4,
     favorite: true,
@@ -70,21 +49,32 @@ const DUMMY_RECIPES = [
       { name: 'garlic, minced', amount: 4, unit: 'cloves', orderIndex: 7 },
       { name: 'ginger, minced', amount: 1, unit: 'tbsp', orderIndex: 8 },
     ],
-    sections: {
-      '料头':
-        '鸡腿肉切丁，用生抽、料酒、淀粉腌制15分钟。\n干辣椒剪段，去籽。\n大葱切段，姜蒜切末。',
-      '料汁':
-        '生抽2勺、老抽半勺、料酒1勺、醋1勺、糖1勺、淀粉1勺、清水3勺，调成宫保汁备用。',
-      '烹饪':
-        '热锅凉油，中小火将花生米炸至金黄酥脆，捞出沥油。\n锅留底油，爆香干辣椒和花椒。\n大火下鸡丁滑炒至变色。\n加入葱姜蒜炒香。\n倒入调好的宫保汁，大火收汁。\n最后加入炸好的花生米，翻炒均匀即可出锅。',
-      '要点':
-        '鸡丁要大火快炒，保持嫩滑。\n宫保汁要提前调好，一气呵成。\n花生米最后放，保持酥脆口感。\n干辣椒不要炒糊，注意火候。',
-    },
+    sections: [
+      {
+        name: '料头',
+        content:
+          '鸡腿肉切丁，用生抽、料酒、淀粉腌制15分钟。\n干辣椒剪段，去籽。\n大葱切段，姜蒜切末。',
+      },
+      {
+        name: '料汁',
+        content:
+          '生抽2勺、老抽半勺、料酒1勺、醋1勺、糖1勺、淀粉1勺、清水3勺，调成宫保汁备用。',
+      },
+      {
+        name: '烹饪',
+        content:
+          '热锅凉油，中小火将花生米炸至金黄酥脆，捞出沥油。\n锅留底油，爆香干辣椒和花椒。\n大火下鸡丁滑炒至变色。\n加入葱姜蒜炒香。\n倒入调好的宫保汁，大火收汁。\n最后加入炸好的花生米，翻炒均匀即可出锅。',
+      },
+      {
+        name: '要点',
+        content:
+          '鸡丁要大火快炒，保持嫩滑。\n宫保汁要提前调好，一气呵成。\n花生米最后放，保持酥脆口感。\n干辣椒不要炒糊，注意火候。',
+      },
+    ],
     tags: ['Spicy', 'Quick', 'Chinese'],
   },
   {
     name: 'Classic Banana Bread',
-    templateName: 'Baking',
     cookTimeMin: 75,
     servings: 8,
     favorite: false,
@@ -102,16 +92,28 @@ const DUMMY_RECIPES = [
       { name: 'vanilla extract', amount: 1, unit: 'tsp', orderIndex: 6 },
       { name: 'all-purpose flour', amount: 1.5, unit: 'cup', orderIndex: 7 },
     ],
-    sections: {
-      Preparation:
-        'Preheat oven to 350°F (175°C).\nButter a 4x8 inch loaf pan.\nMash the ripe bananas in a mixing bowl.',
-      Mixing:
-        'Stir melted butter into mashed bananas.\nMix in baking soda and salt.\nStir in sugar, beaten egg, and vanilla extract.\nAdd flour and mix until just incorporated.',
-      Baking:
-        'Pour batter into prepared loaf pan.\nBake for 50-60 minutes until a tester inserted into the center comes out clean.',
-      Cooling:
-        'Cool in pan for 10 minutes.\nRemove from pan and cool completely on a wire rack before slicing.',
-    },
+    sections: [
+      {
+        name: 'Preparation',
+        content:
+          'Preheat oven to 350°F (175°C).\nButter a 4x8 inch loaf pan.\nMash the ripe bananas in a mixing bowl.',
+      },
+      {
+        name: 'Mixing',
+        content:
+          'Stir melted butter into mashed bananas.\nMix in baking soda and salt.\nStir in sugar, beaten egg, and vanilla extract.\nAdd flour and mix until just incorporated.',
+      },
+      {
+        name: 'Baking',
+        content:
+          'Pour batter into prepared loaf pan.\nBake for 50-60 minutes until a tester inserted into the center comes out clean.',
+      },
+      {
+        name: 'Cooling',
+        content:
+          'Cool in pan for 10 minutes.\nRemove from pan and cool completely on a wire rack before slicing.',
+      },
+    ],
     tags: ['Dessert', 'Breakfast', 'Vegetarian'],
   },
   {
@@ -260,42 +262,11 @@ export async function seedDatabase(): Promise<void> {
       DELETE FROM recipe_sections;
       DELETE FROM recipe_ingredients;
       DELETE FROM recipes;
-      DELETE FROM template_sections;
-      DELETE FROM templates;
       DELETE FROM tags;
     `);
 
-    // Insert Templates and their Sections
-    const templateIdMap = new Map<string, string>(); // name -> id
-
-    for (const template of DEFAULT_TEMPLATES) {
-      const templateId = generateId();
-      templateIdMap.set(template.name, templateId);
-
-      const timestamp = now();
-
-      await db.runAsync(
-        `INSERT INTO templates (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
-        [templateId, template.name, timestamp, timestamp]
-      );
-
-      // Insert sections for this template
-      for (let i = 0; i < template.sections.length; i++) {
-        const sectionId = generateId();
-        const sectionName = template.sections[i];
-
-        await db.runAsync(
-          `INSERT INTO template_sections (id, template_id, name, order_index, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-          [sectionId, templateId, sectionName, i, timestamp, timestamp]
-        );
-      }
-    }
-
     // Insert Recipes
     for (const recipe of DUMMY_RECIPES) {
-      const templateId = templateIdMap.get(recipe.templateName);
-      if (!templateId) continue;
-
       const recipeId = generateId();
       const timestamp = now();
 
@@ -328,17 +299,17 @@ export async function seedDatabase(): Promise<void> {
       }
 
       // Insert sections
-      const template = DEFAULT_TEMPLATES.find((t) => t.name === recipe.templateName);
-      const sectionOrder = template?.sections ?? Object.keys(recipe.sections);
-      for (const sectionName of sectionOrder) {
-        const content = recipe.sections[sectionName];
-        if (!content) continue;
+      const sections = Array.isArray(recipe.sections)
+        ? recipe.sections
+        : Object.entries(recipe.sections).map(([name, content]) => ({ name, content }));
+      for (const section of sections) {
+        if (!section?.content) continue;
 
         const sectionId = generateId();
         await db.runAsync(
           `INSERT INTO recipe_sections (id, recipe_id, name, content, updated_at)
            VALUES (?, ?, ?, ?, ?)`,
-          [sectionId, recipeId, sectionName, content, timestamp]
+          [sectionId, recipeId, section.name, section.content, timestamp]
         );
       }
 
