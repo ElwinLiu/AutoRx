@@ -133,6 +133,7 @@ export function ModelSelectionScreen({
     const groups: Record<ProviderId, ModelItem[]> = {
       openai: [],
       openrouter: [],
+      gemini: [],
     };
     for (const model of filteredModels) {
       groups[model.provider].push(model);

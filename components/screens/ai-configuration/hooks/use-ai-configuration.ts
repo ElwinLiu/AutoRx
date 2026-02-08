@@ -75,18 +75,22 @@ export function useAIConfiguration(): UseAIConfigurationReturn {
   const [providerInputs, setProviderInputs] = useState<Record<ProviderId, string>>({
     openai: '',
     openrouter: '',
+    gemini: '',
   });
   const [verifyingProviders, setVerifyingProviders] = useState<Record<ProviderId, boolean>>({
     openai: false,
     openrouter: false,
+    gemini: false,
   });
   const [providerErrors, setProviderErrors] = useState<Record<ProviderId, string | null>>({
     openai: null,
     openrouter: null,
+    gemini: null,
   });
   const [availableModels, setAvailableModels] = useState<Record<ProviderId, FetchedModel[]>>({
     openai: [],
     openrouter: [],
+    gemini: [],
   });
   const [isSaving, setIsSaving] = useState(false);
   const [selectedModel, setSelectedModel] = useState<SelectedModel>(null);

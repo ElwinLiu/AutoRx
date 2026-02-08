@@ -6,7 +6,7 @@ const STORAGE_KEYS = {
   SECONDARY_MODEL: 'ai_secondary_model',
 } as const;
 
-export type ProviderId = 'openai' | 'openrouter';
+export type ProviderId = 'openai' | 'openrouter' | 'gemini';
 
 export type ProviderConfig = {
   id: ProviderId;
@@ -48,6 +48,14 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     name: 'OpenRouter',
     description: 'Access to 200+ models from various providers',
     baseUrl: 'https://openrouter.ai/api/v1',
+    requiresApiKey: true,
+    supportsCustomBaseUrl: false,
+  },
+  gemini: {
+    id: 'gemini',
+    name: 'Google Gemini',
+    description: 'Gemini 2.5 Pro, Flash, and more',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     requiresApiKey: true,
     supportsCustomBaseUrl: false,
   },
@@ -145,6 +153,7 @@ export async function getAISettings(): Promise<AISettings> {
     providerKeys: {
       openai: providerKeys.openai ?? null,
       openrouter: providerKeys.openrouter ?? null,
+      gemini: providerKeys.gemini ?? null,
     },
     primaryModel,
     secondaryModel,

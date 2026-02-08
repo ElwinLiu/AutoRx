@@ -87,6 +87,39 @@ async function verifyOpenRouter(apiKey: string): Promise<ProviderVerificationRes
   }
 }
 
+async function verifyGemini(apiKey: string): Promise<ProviderVerificationResult> {
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/models', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return { valid: false, error: 'Invalid API key' };
+      }
+      const error = await response.text();
+      return { valid: false, error: `Gemini API error: ${error}` };
+    }
+
+    const data = await response.json();
+    const models: FetchedModel[] = data.data
+      .filter((m: { id: string }) => m.id.includes('gemini'))
+      .map((m: { id: string; created?: number }) => ({
+        id: m.id,
+        name: m.id,
+        description: m.created ? `Created: ${new Date(m.created * 1000).toLocaleDateString()}` : undefined,
+      }))
+      .sort((a: FetchedModel, b: FetchedModel) => a.id.localeCompare(b.id));
+
+    return { valid: true, models };
+  } catch (error) {
+    return { valid: false, error: 'Network error. Please check your connection.' };
+  }
+}
+
 export async function verifyProviderApiKey(
   provider: ProviderId,
   apiKey: string
@@ -96,6 +129,8 @@ export async function verifyProviderApiKey(
       return verifyOpenAI(apiKey);
     case 'openrouter':
       return verifyOpenRouter(apiKey);
+    case 'gemini':
+      return verifyGemini(apiKey);
     default:
       return { valid: false, error: 'Unknown provider' };
   }
