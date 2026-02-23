@@ -16,7 +16,7 @@ import Animated, {
   Extrapolation,
   FadeInUp,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView, FlatList as RNGHFlatList } from 'react-native-gesture-handler';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useNativeHeaderOptions } from '@/hooks/use-native-header';
@@ -129,9 +129,7 @@ interface RecipeDetail {
   time: string;
   servings: number;
   tags: string[];
-  imageUrl?: string;
-  imageWidth?: number;
-  imageHeight?: number;
+  images: { id: string; url: string; width?: number; height?: number }[];
   isFavorite: boolean;
   ingredients: Ingredient[];
   instructionSections: { id: string; name: string; steps: string[] }[];
@@ -156,6 +154,7 @@ export function RecipeDetailScreen() {
   const [aiOpen, setAiOpen] = useState(false);
   const [isEditingServings, setIsEditingServings] = useState(false);
   const [tempServings, setTempServings] = useState('');
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Unit conversion state
   const [unitConversionOpen, setUnitConversionOpen] = useState(false);
@@ -223,9 +222,7 @@ export function RecipeDetailScreen() {
               time: data.time,
               servings: data.servings,
               tags: data.tags,
-              imageUrl: data.imageUrl,
-              imageWidth: data.imageWidth,
-              imageHeight: data.imageHeight,
+              images: data.images,
               isFavorite: data.isFavorite,
               ingredients: data.ingredients,
               instructionSections: data.instructionSections,
@@ -421,6 +418,26 @@ export function RecipeDetailScreen() {
           color: colors.textInverted,
           ...typography.footnote,
           fontWeight: '600',
+        },
+        paginationContainer: {
+          position: 'absolute',
+          bottom: 100,
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 8,
+        },
+        paginationDot: {
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        },
+        paginationDotActive: {
+          backgroundColor: '#FFFFFF',
+          width: 20,
         },
 
         header: {
@@ -823,11 +840,30 @@ export function RecipeDetailScreen() {
   return (
     <View style={styles.container}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        {/* Parallax Hero Image */}
+        {/* Parallax Hero Image Carousel */}
         <Animated.View style={[styles.heroContainer, heroAnimatedStyle]}>
           <View style={styles.hero}>
-            {recipe.imageUrl ? (
-              <Image source={{ uri: recipe.imageUrl }} contentFit="cover" style={styles.heroImage} />
+            {recipe.images.length > 0 ? (
+              <RNGHFlatList
+                data={recipe.images}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id}
+                scrollEventThrottle={16}
+                nestedScrollEnabled
+                style={{ flex: 1 }}
+                contentContainerStyle={{ flexGrow: 1 }}
+                renderItem={({ item }) => (
+                  <View style={{ width, height: '100%' }}>
+                    <Image source={{ uri: item.url }} contentFit="cover" style={styles.heroImage} />
+                  </View>
+                )}
+                onScroll={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / width);
+                  setActiveImageIndex(index);
+                }}
+              />
             ) : (
               <View style={[styles.hero, { alignItems: 'center', justifyContent: 'center' }]}>
                 <Ionicons name="restaurant-outline" size={40} color={colors.textTertiary} />
@@ -855,7 +891,20 @@ export function RecipeDetailScreen() {
                 </View>
               )}
             </View>
-
+            {/* Pagination dots */}
+            {recipe.images.length > 1 && (
+              <View style={styles.paginationContainer}>
+                {recipe.images.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.paginationDot,
+                      index === activeImageIndex && styles.paginationDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         </Animated.View>
 

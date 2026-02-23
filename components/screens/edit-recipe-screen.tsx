@@ -11,6 +11,7 @@ import { TagInput } from '@/components/ui/tag-input';
 import { recipeRepository } from '@/lib/repositories';
 import { useDatabase } from '@/lib/db-provider';
 import type { Ingredient, InstructionSection } from '@/types/models';
+import { Image } from 'expo-image';
 
 type IngredientInput = {
   id: string;
@@ -35,6 +36,7 @@ export function EditRecipeScreen() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<IngredientInput[]>([]);
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
+  const [images, setImages] = useState<{ url: string; width?: number; height?: number }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [originalRecipe, setOriginalRecipe] = useState<{
@@ -42,6 +44,7 @@ export function EditRecipeScreen() {
     time: string;
     servings: number;
     tags: string[];
+    images: { url: string; width?: number; height?: number }[];
     ingredients: Ingredient[];
     instructionSections: InstructionSection[];
   } | null>(null);
@@ -72,11 +75,13 @@ export function EditRecipeScreen() {
             }))
           );
           setInstructionSections(recipe.instructionSections);
+          setImages(recipe.images);
           setOriginalRecipe({
             title: recipe.title,
             time: recipe.time,
             servings: recipe.servings,
             tags: recipe.tags,
+            images: recipe.images,
             ingredients: recipe.ingredients,
             instructionSections: recipe.instructionSections,
           });
@@ -112,6 +117,17 @@ export function EditRecipeScreen() {
     setInstructionSections((prev) =>
       prev.map((section) => (section.id === sectionId ? { ...section, name } : section))
     );
+  };
+
+  const addImage = () => {
+    const url = prompt('Enter image URL:');
+    if (url?.trim()) {
+      setImages((prev) => [...prev, { url: url.trim() }]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateSectionSteps = (sectionId: string, stepsText: string) => {
@@ -155,8 +171,14 @@ export function EditRecipeScreen() {
       }
     }
 
+    // Check images
+    if (images.length !== originalRecipe.images.length) return true;
+    for (let i = 0; i < images.length; i++) {
+      if (images[i].url !== originalRecipe.images[i]?.url) return true;
+    }
+
     return false;
-  }, [recipeName, time, servings, tags, ingredients, instructionSections, originalRecipe]);
+  }, [recipeName, time, servings, tags, ingredients, instructionSections, images, originalRecipe]);
 
   const handleSave = async () => {
     if (!recipeName.trim()) {
@@ -197,6 +219,7 @@ export function EditRecipeScreen() {
         name: recipeName.trim(),
         cookTimeMin,
         servings: servingsNum,
+        images,
       });
 
       // For now, we show a success message
@@ -340,6 +363,38 @@ export function EditRecipeScreen() {
           color: colors.textTertiary,
           marginTop: spacing.xs,
         },
+        imageList: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
+          marginBottom: spacing.sm,
+        },
+        imageItem: {
+          position: 'relative',
+        },
+        imageThumb: {
+          width: 80,
+          height: 80,
+          borderRadius: radius.md,
+        },
+        removeImageBtn: {
+          position: 'absolute',
+          top: -6,
+          right: -6,
+          backgroundColor: colors.surfacePrimary,
+          borderRadius: 10,
+        },
+        addImage: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.sm,
+        },
+        addImageText: {
+          color: colors.accent,
+          ...typography.body,
+          fontWeight: '600',
+        },
       }),
     [colors, insets.bottom, insets.top, radius, spacing, typography]
   );
@@ -419,6 +474,27 @@ export function EditRecipeScreen() {
             allTags={allTags}
             placeholder="Type to search or create tags..."
           />
+        </View>
+
+        {/* Images */}
+        <View>
+          <Text style={styles.fieldLabel}>Images ({images.length})</Text>
+          {images.length > 0 && (
+            <View style={styles.imageList}>
+              {images.map((img, index) => (
+                <View key={index} style={styles.imageItem}>
+                  <Image source={{ uri: img.url }} style={styles.imageThumb} contentFit="cover" />
+                  <Pressable onPress={() => removeImage(index)} style={styles.removeImageBtn}>
+                    <Ionicons name="close-circle" size={20} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+          <Pressable style={styles.addImage} onPress={addImage}>
+            <Ionicons name="image-outline" size={20} color={colors.accent} />
+            <Text style={styles.addImageText}>Add Image URL</Text>
+          </Pressable>
         </View>
 
         {/* Ingredients */}

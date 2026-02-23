@@ -34,10 +34,18 @@ const DUMMY_RECIPES = [
     cookTimeMin: 30,
     servings: 4,
     favorite: true,
-    imageUrl:
-      'https://images.unsplash.com/photo-1525755662778-989d0524087e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-    imageWidth: 1080,
-    imageHeight: 720,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+    ],
     ingredients: [
       { name: 'boneless chicken thighs, cut into bite-sized pieces', amount: 1.5, unit: 'lb', orderIndex: 0 },
       { name: 'soy sauce', amount: 2, unit: 'tbsp', orderIndex: 1 },
@@ -78,10 +86,23 @@ const DUMMY_RECIPES = [
     cookTimeMin: 75,
     servings: 8,
     favorite: false,
-    imageUrl:
-      'https://images.unsplash.com/photo-1599743271551-da8b8faacc5b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-    imageWidth: 800,
-    imageHeight: 1200,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1599743271551-da8b8faacc5b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 800,
+        height: 1200,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+    ],
     ingredients: [
       { name: 'ripe bananas, mashed', amount: 3, unit: '', orderIndex: 0 },
       { name: 'melted butter', amount: 1/3, unit: 'cup', orderIndex: 1 },
@@ -122,10 +143,18 @@ const DUMMY_RECIPES = [
     cookTimeMin: 35,
     servings: 24,
     favorite: true,
-    imageUrl:
-      'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-    imageWidth: 900,
-    imageHeight: 600,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 900,
+        height: 600,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+    ],
     ingredients: [
       { name: 'all-purpose flour', amount: 2.25, unit: 'cup', orderIndex: 0 },
       { name: 'baking soda', amount: 1, unit: 'tsp', orderIndex: 1 },
@@ -155,10 +184,18 @@ const DUMMY_RECIPES = [
     cookTimeMin: 25,
     servings: 4,
     favorite: true,
-    imageUrl:
-      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-    imageWidth: 1080,
-    imageHeight: 720,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1617093727343-374698b1b08d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+    ],
     ingredients: [
       { name: 'soft tofu, cubed', amount: 1, unit: 'block', orderIndex: 0 },
       { name: 'ground pork', amount: 0.5, unit: 'lb', orderIndex: 1 },
@@ -188,10 +225,13 @@ const DUMMY_RECIPES = [
     cookTimeMin: 20,
     servings: 4,
     favorite: false,
-    imageUrl:
-      'https://images.unsplash.com/photo-1512058564366-18510be2db19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-    imageWidth: 1080,
-    imageHeight: 720,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+    ],
     ingredients: [
       { name: 'cooked rice, preferably day-old', amount: 3, unit: 'cup', orderIndex: 0 },
       { name: 'vegetable oil', amount: 2, unit: 'tbsp', orderIndex: 1 },
@@ -220,10 +260,23 @@ const DUMMY_RECIPES = [
     cookTimeMin: 35,
     servings: 3,
     favorite: true,
-    imageUrl:
-      'https://images.unsplash.com/photo-1512058564366-18510be2db19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
-    imageWidth: 1080,
-    imageHeight: 720,
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+      {
+        url: 'https://images.unsplash.com/photo-1564834724105-918b73d1b9e0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+        width: 1080,
+        height: 720,
+      },
+    ],
     ingredients: [
       { name: '鸡腿肉', amount: 300, unit: 'g', orderIndex: 0 },
       { name: '大米', amount: 2, unit: '杯', orderIndex: 1 },
@@ -272,22 +325,39 @@ export async function seedDatabase(): Promise<void> {
 
       await db.runAsync(
         `INSERT INTO recipes (
-          id, name, cook_time_min, servings, favorite,
-          image_url, image_width, image_height, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, name, cook_time_min, servings, favorite, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           recipeId,
           recipe.name,
           recipe.cookTimeMin ?? null,
           recipe.servings ?? null,
           recipe.favorite ? 1 : 0,
-          recipe.imageUrl ?? null,
-          recipe.imageWidth ?? null,
-          recipe.imageHeight ?? null,
           timestamp,
           timestamp,
         ]
       );
+
+      // Insert images
+      if (recipe.images?.length) {
+        for (let i = 0; i < recipe.images.length; i++) {
+          const img = recipe.images[i];
+          const imageId = generateId();
+          await db.runAsync(
+            `INSERT INTO recipe_images (id, recipe_id, url, width, height, order_index, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              imageId,
+              recipeId,
+              img.url,
+              img.width ?? null,
+              img.height ?? null,
+              i,
+              timestamp,
+            ]
+          );
+        }
+      }
 
       // Insert ingredients
       for (const ingredient of recipe.ingredients) {

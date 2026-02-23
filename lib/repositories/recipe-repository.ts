@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { BaseRepository } from './base-repository';
-import type { Recipe, Ingredient, InstructionSection } from '@/types/models';
+import type { Recipe, Ingredient, InstructionSection, RecipeImage } from '@/types/models';
 
 // Database row types
 interface RecipeRow {
@@ -9,10 +9,16 @@ interface RecipeRow {
   cook_time_min: number | null;
   servings: number | null;
   favorite: number;
-  image_url: string | null;
-  image_width: number | null;
-  image_height: number | null;
   updated_at: number;
+}
+
+interface RecipeImageRow {
+  id: string;
+  recipe_id: string;
+  url: string;
+  width: number | null;
+  height: number | null;
+  order_index: number;
 }
 
 interface TagRow {
@@ -56,7 +62,7 @@ export class RecipeRepository extends BaseRepository {
   async getAll(): Promise<Recipe[]> {
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, updated_at
          FROM recipes
          WHERE deleted_at IS NULL
          ORDER BY updated_at DESC`
@@ -72,7 +78,7 @@ export class RecipeRepository extends BaseRepository {
     const normalizedTag = tag.trim();
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT r.id, r.name, r.cook_time_min, r.servings, r.favorite, r.image_url, r.image_width, r.image_height, r.updated_at
+        `SELECT r.id, r.name, r.cook_time_min, r.servings, r.favorite, r.updated_at
          FROM recipes r
          WHERE r.deleted_at IS NULL
            AND EXISTS (
@@ -94,7 +100,7 @@ export class RecipeRepository extends BaseRepository {
   async getFavorites(): Promise<Recipe[]> {
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, updated_at
          FROM recipes
          WHERE deleted_at IS NULL AND favorite = 1
          ORDER BY updated_at DESC`
@@ -109,7 +115,7 @@ export class RecipeRepository extends BaseRepository {
   async getByCookTimeMax(maxMinutes: number): Promise<Recipe[]> {
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, updated_at
          FROM recipes
          WHERE deleted_at IS NULL AND cook_time_min IS NOT NULL AND cook_time_min <= ?
          ORDER BY updated_at DESC`,
@@ -127,7 +133,7 @@ export class RecipeRepository extends BaseRepository {
 
     return this.execute(async (db) => {
       const rows = await db.getAllAsync<RecipeRow>(
-        `SELECT r.id, r.name, r.cook_time_min, r.servings, r.favorite, r.image_url, r.image_width, r.image_height, r.updated_at
+        `SELECT r.id, r.name, r.cook_time_min, r.servings, r.favorite, r.updated_at
          FROM recipes r
          WHERE r.deleted_at IS NULL
            AND (
@@ -152,7 +158,7 @@ export class RecipeRepository extends BaseRepository {
   async getById(id: string): Promise<Recipe | null> {
     return this.execute(async (db) => {
       const row = await db.getFirstAsync<RecipeRow>(
-        `SELECT id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, updated_at
+        `SELECT id, name, cook_time_min, servings, favorite, updated_at
          FROM recipes
          WHERE id = ? AND deleted_at IS NULL`,
         [id]
@@ -160,13 +166,14 @@ export class RecipeRepository extends BaseRepository {
 
       if (!row) return null;
 
-      const [tags, ingredients, sections] = await Promise.all([
+      const [tags, ingredients, sections, images] = await Promise.all([
         this.getTagsForRecipe(id),
         this.getIngredientsForRecipe(id),
         this.getSectionsForRecipe(id),
+        this.getImagesForRecipe(id),
       ]);
 
-      return this.mapToRecipeWithDetails(row, tags, ingredients, sections);
+      return this.mapToRecipeWithDetails(row, tags, ingredients, sections, images);
     });
   }
 
@@ -177,9 +184,7 @@ export class RecipeRepository extends BaseRepository {
     name: string;
     cookTimeMin?: number;
     servings?: number;
-    imageUrl?: string;
-    imageWidth?: number;
-    imageHeight?: number;
+    images?: Array<{ url: string; width?: number; height?: number }>;
     ingredients?: Array<{ item: string; amount: number; unit: string }>;
     sections?: Array<{ name: string; content: string }>;
     tags?: string[];
@@ -192,20 +197,37 @@ export class RecipeRepository extends BaseRepository {
 
       try {
         await db.runAsync(
-          `INSERT INTO recipes (id, name, cook_time_min, servings, favorite, image_url, image_width, image_height, created_at, updated_at)
-           VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+          `INSERT INTO recipes (id, name, cook_time_min, servings, favorite, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 0, ?, ?)`,
           [
             id,
             data.name,
             data.cookTimeMin ?? null,
             data.servings ?? null,
-            data.imageUrl ?? null,
-            data.imageWidth ?? null,
-            data.imageHeight ?? null,
             now,
             now,
           ]
         );
+
+        // Insert images
+        if (data.images?.length) {
+          for (let i = 0; i < data.images.length; i++) {
+            const img = data.images[i];
+            await db.runAsync(
+              `INSERT INTO recipe_images (id, recipe_id, url, width, height, order_index, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                this.generateId(),
+                id,
+                img.url,
+                img.width ?? null,
+                img.height ?? null,
+                i,
+                now,
+              ]
+            );
+          }
+        }
 
         // Insert ingredients
         if (data.ingredients?.length) {
@@ -256,9 +278,7 @@ export class RecipeRepository extends BaseRepository {
       cookTimeMin?: number;
       servings?: number;
       favorite?: boolean;
-      imageUrl?: string;
-      imageWidth?: number;
-      imageHeight?: number;
+      images?: Array<{ url: string; width?: number; height?: number }>;
     }
   ): Promise<Recipe> {
     return this.execute(async (db) => {
@@ -281,32 +301,60 @@ export class RecipeRepository extends BaseRepository {
         updates.push('favorite = ?');
         values.push(data.favorite ? 1 : 0);
       }
-      if (data.imageUrl !== undefined) {
-        updates.push('image_url = ?');
-        values.push(data.imageUrl);
-      }
-      if (data.imageWidth !== undefined) {
-        updates.push('image_width = ?');
-        values.push(data.imageWidth);
-      }
-      if (data.imageHeight !== undefined) {
-        updates.push('image_height = ?');
-        values.push(data.imageHeight);
+
+      if (updates.length > 0) {
+        updates.push('updated_at = ?');
+        values.push(this.now());
+        values.push(id);
+
+        await db.runAsync(
+          `UPDATE recipes SET ${updates.join(', ')} WHERE id = ?`,
+          values
+        );
       }
 
-      updates.push('updated_at = ?');
-      values.push(this.now());
-      values.push(id);
-
-      await db.runAsync(
-        `UPDATE recipes SET ${updates.join(', ')} WHERE id = ?`,
-        values
-      );
+      // Update images if provided
+      if (data.images !== undefined) {
+        await this.updateRecipeImages(id, data.images, db);
+      }
 
       const recipe = await this.getById(id);
       if (!recipe) throw new Error('Recipe not found after update');
       return recipe;
     });
+  }
+
+  /**
+   * Update recipe images (replaces all existing images)
+   */
+  private async updateRecipeImages(
+    recipeId: string,
+    images: Array<{ url: string; width?: number; height?: number }>,
+    dbOverride?: SQLiteDatabase
+  ): Promise<void> {
+    const db = dbOverride ?? await this.getDb();
+    const now = this.now();
+
+    // Delete existing images
+    await db.runAsync('DELETE FROM recipe_images WHERE recipe_id = ?', [recipeId]);
+
+    // Insert new images
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      await db.runAsync(
+        `INSERT INTO recipe_images (id, recipe_id, url, width, height, order_index, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          this.generateId(),
+          recipeId,
+          img.url,
+          img.width ?? null,
+          img.height ?? null,
+          i,
+          now,
+        ]
+      );
+    }
   }
 
   /**
@@ -407,9 +455,39 @@ export class RecipeRepository extends BaseRepository {
     return map;
   }
 
+  private async getImagesForRecipes(recipeIds: string[]): Promise<Record<string, RecipeImage[]>> {
+    if (recipeIds.length === 0) return {};
+
+    const db = await this.getDb();
+    const placeholders = recipeIds.map(() => '?').join(', ');
+    const rows = await db.getAllAsync<RecipeImageRow>(
+      `SELECT id, recipe_id, url, width, height, order_index
+       FROM recipe_images
+       WHERE recipe_id IN (${placeholders})
+       ORDER BY recipe_id, order_index ASC`,
+      recipeIds
+    );
+
+    const map: Record<string, RecipeImage[]> = {};
+    for (const row of rows) {
+      if (!map[row.recipe_id]) {
+        map[row.recipe_id] = [];
+      }
+      map[row.recipe_id].push({
+        id: row.id,
+        url: row.url,
+        width: row.width ?? undefined,
+        height: row.height ?? undefined,
+        orderIndex: row.order_index,
+      });
+    }
+    return map;
+  }
+
   private async mapRowsToRecipes(rows: RecipeRow[]): Promise<Recipe[]> {
     const tagsByRecipe = await this.getTagsForRecipes(rows.map((row) => row.id));
-    return rows.map((row) => this.mapToRecipe(row, tagsByRecipe[row.id] ?? []));
+    const imagesByRecipe = await this.getImagesForRecipes(rows.map((row) => row.id));
+    return rows.map((row) => this.mapToRecipe(row, tagsByRecipe[row.id] ?? [], imagesByRecipe[row.id] ?? []));
   }
 
   private async getIngredientsForRecipe(recipeId: string): Promise<Ingredient[]> {
@@ -477,9 +555,29 @@ export class RecipeRepository extends BaseRepository {
     }
   }
 
+  private async getImagesForRecipe(recipeId: string): Promise<RecipeImage[]> {
+    const db = await this.getDb();
+    const rows = await db.getAllAsync<RecipeImageRow>(
+      `SELECT id, recipe_id, url, width, height, order_index 
+       FROM recipe_images 
+       WHERE recipe_id = ? 
+       ORDER BY order_index ASC`,
+      [recipeId]
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      url: row.url,
+      width: row.width ?? undefined,
+      height: row.height ?? undefined,
+      orderIndex: row.order_index,
+    }));
+  }
+
   private mapToRecipe(
     row: RecipeRow,
-    tags: string[]
+    tags: string[],
+    images: RecipeImage[]
   ): Recipe {
     return {
       id: row.id,
@@ -489,9 +587,7 @@ export class RecipeRepository extends BaseRepository {
       tags,
       lastUpdated: new Date(row.updated_at).toLocaleDateString(),
       timesCooked: 0,
-      imageUrl: row.image_url ?? undefined,
-      imageWidth: row.image_width ?? undefined,
-      imageHeight: row.image_height ?? undefined,
+      images,
       isFavorite: row.favorite === 1,
       ingredients: [],
       instructionSections: [],
@@ -502,10 +598,11 @@ export class RecipeRepository extends BaseRepository {
     row: RecipeRow,
     tags: string[],
     ingredients: Ingredient[],
-    sections: InstructionSection[]
+    sections: InstructionSection[],
+    images: RecipeImage[]
   ): Recipe {
     return {
-      ...this.mapToRecipe(row, tags),
+      ...this.mapToRecipe(row, tags, images),
       ingredients,
       instructionSections: sections,
     };

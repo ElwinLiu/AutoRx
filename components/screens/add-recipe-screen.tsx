@@ -11,6 +11,7 @@ import { TagInput } from '@/components/ui/tag-input';
 import { recipeRepository } from '@/lib/repositories';
 import { useDatabase } from '@/lib/db-provider';
 import type { InstructionSection } from '@/types/models';
+import { Image } from 'expo-image';
 
 type IngredientInput = {
   id: string;
@@ -36,6 +37,7 @@ export function AddRecipeScreen() {
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([
     { id: 'section-1', name: 'Instructions', steps: [] },
   ]);
+  const [images, setImages] = useState<{ url: string; width?: number; height?: number }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -110,6 +112,18 @@ export function AddRecipeScreen() {
     setInstructionSections((prev) => prev.filter((section) => section.id !== sectionId));
   };
 
+  const addImage = () => {
+    // For now, use a prompt to enter image URL. In production, this would use image picker
+    const url = prompt('Enter image URL:');
+    if (url?.trim()) {
+      setImages((prev) => [...prev, { url: url.trim() }]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = async () => {
     if (!recipeName.trim()) {
       // Could show an alert here
@@ -152,6 +166,7 @@ export function AddRecipeScreen() {
         name: recipeName.trim(),
         cookTimeMin,
         servings: servingsNum,
+        images,
         ingredients: validIngredients,
         sections,
         tags,
@@ -306,6 +321,38 @@ export function AddRecipeScreen() {
           ...typography.body,
           fontWeight: '600',
         },
+        imageList: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
+          marginBottom: spacing.sm,
+        },
+        imageItem: {
+          position: 'relative',
+        },
+        imageThumb: {
+          width: 80,
+          height: 80,
+          borderRadius: radius.md,
+        },
+        removeImageBtn: {
+          position: 'absolute',
+          top: -6,
+          right: -6,
+          backgroundColor: colors.surfacePrimary,
+          borderRadius: 10,
+        },
+        addImage: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.sm,
+        },
+        addImageText: {
+          color: colors.accent,
+          ...typography.body,
+          fontWeight: '600',
+        },
       }),
     [colors, insets.bottom, insets.top, radius, spacing, typography]
   );
@@ -375,6 +422,26 @@ export function AddRecipeScreen() {
             allTags={allTags}
             placeholder="Type to search or create tags..."
           />
+        </View>
+
+        <View>
+          <Text style={styles.fieldLabel}>Images ({images.length})</Text>
+          {images.length > 0 && (
+            <View style={styles.imageList}>
+              {images.map((img, index) => (
+                <View key={index} style={styles.imageItem}>
+                  <Image source={{ uri: img.url }} style={styles.imageThumb} contentFit="cover" />
+                  <Pressable onPress={() => removeImage(index)} style={styles.removeImageBtn}>
+                    <Ionicons name="close-circle" size={20} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+          <Pressable style={styles.addImage} onPress={addImage}>
+            <Ionicons name="image-outline" size={20} color={colors.accent} />
+            <Text style={styles.addImageText}>Add Image URL</Text>
+          </Pressable>
         </View>
 
         <View>

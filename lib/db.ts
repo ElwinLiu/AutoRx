@@ -12,13 +12,25 @@ CREATE TABLE IF NOT EXISTS recipes (
   servings REAL,
   favorite INTEGER NOT NULL DEFAULT 0,
   source_url TEXT,
-  image_url TEXT,
-  image_width INTEGER,
-  image_height INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   deleted_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS recipe_images (
+  id TEXT PRIMARY KEY,
+  recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  width INTEGER,
+  height INTEGER,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_recipe_images_recipe
+  ON recipe_images(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_recipe_images_order
+  ON recipe_images(recipe_id, order_index);
 
 CREATE INDEX IF NOT EXISTS idx_recipes_updated ON recipes(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_recipes_fav_updated ON recipes(favorite, updated_at DESC);
@@ -116,73 +128,106 @@ async function migrateRecipesTable(db: SQLiteDatabase): Promise<void> {
     const columnNames = await getTableColumns(db, 'recipes');
     if (columnNames.length === 0) return;
 
+    const hasImageUrl = columnNames.includes('image_url');
     const hasTemplateId = columnNames.includes('template_id');
     const hasTemplateName = columnNames.includes('template_name');
 
-    // Already on the new schema (no template_id, no template_name)
-    if (!hasTemplateId && !hasTemplateName) {
-      // Ensure image columns exist (safety for older installs)
-      const missingImages = ['image_url', 'image_width', 'image_height'].filter(
-        (name) => !columnNames.includes(name)
+    // Create recipe_images table if it doesn't exist
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS recipe_images (
+        id TEXT PRIMARY KEY,
+        recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+        url TEXT NOT NULL,
+        width INTEGER,
+        height INTEGER,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
       );
-      if (missingImages.length > 0) {
-        for (const column of missingImages) {
-          const type = column === 'image_url' ? 'TEXT' : 'INTEGER';
-          await db.execAsync(`ALTER TABLE recipes ADD COLUMN ${column} ${type};`);
-        }
+    `);
+
+    // If we have image columns, migrate images to new table then remove columns
+    if (hasImageUrl) {
+      // Migrate existing images to recipe_images table
+      const recipesWithImages = await db.getAllAsync<{
+        id: string;
+        image_url: string | null;
+        image_width: number | null;
+        image_height: number | null;
+        updated_at: number;
+      }>(
+        `SELECT id, image_url, image_width, image_height, updated_at 
+         FROM recipes 
+         WHERE image_url IS NOT NULL`
+      );
+
+      for (const recipe of recipesWithImages) {
+        const imageId = generateId();
+        await db.runAsync(
+          `INSERT INTO recipe_images (id, recipe_id, url, width, height, order_index, created_at)
+           VALUES (?, ?, ?, ?, ?, 0, ?)`,
+          [
+            imageId,
+            recipe.id,
+            recipe.image_url,
+            recipe.image_width ?? null,
+            recipe.image_height ?? null,
+            recipe.updated_at,
+          ]
+        );
       }
-      return;
     }
 
-    await db.execAsync(`
-      CREATE TABLE recipes_new (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        cook_time_min INTEGER,
-        servings REAL,
-        favorite INTEGER NOT NULL DEFAULT 0,
-        source_url TEXT,
-        image_url TEXT,
-        image_width INTEGER,
-        image_height INTEGER,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        deleted_at INTEGER
-      );
-    `);
+    // If we have old columns (image_url, template_id, template_name), we need to migrate
+    if (hasImageUrl || hasTemplateId || hasTemplateName) {
+      await db.execAsync(`
+        CREATE TABLE recipes_new (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          cook_time_min INTEGER,
+          servings REAL,
+          favorite INTEGER NOT NULL DEFAULT 0,
+          source_url TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+      `);
 
-    const sourceUrlExpr = columnNames.includes('source_url') ? 'r.source_url' : 'NULL';
-    const imageUrlExpr = columnNames.includes('image_url') ? 'r.image_url' : 'NULL';
-    const imageWidthExpr = columnNames.includes('image_width') ? 'r.image_width' : 'NULL';
-    const imageHeightExpr = columnNames.includes('image_height') ? 'r.image_height' : 'NULL';
+      const sourceUrlExpr = columnNames.includes('source_url') ? 'r.source_url' : 'NULL';
 
-    await db.execAsync(`
-      INSERT INTO recipes_new (
-        id, name, cook_time_min, servings, favorite,
-        source_url, image_url, image_width, image_height,
-        created_at, updated_at, deleted_at
-      )
-      SELECT
-        r.id,
-        r.name,
-        r.cook_time_min,
-        r.servings,
-        r.favorite,
-        ${sourceUrlExpr} AS source_url,
-        ${imageUrlExpr} AS image_url,
-        ${imageWidthExpr} AS image_width,
-        ${imageHeightExpr} AS image_height,
-        r.created_at,
-        r.updated_at,
-        r.deleted_at
-      FROM recipes r;
-    `);
+      await db.execAsync(`
+        INSERT INTO recipes_new (
+          id, name, cook_time_min, servings, favorite,
+          source_url, created_at, updated_at, deleted_at
+        )
+        SELECT
+          r.id,
+          r.name,
+          r.cook_time_min,
+          r.servings,
+          r.favorite,
+          ${sourceUrlExpr} AS source_url,
+          r.created_at,
+          r.updated_at,
+          r.deleted_at
+        FROM recipes r;
+      `);
 
-    await db.execAsync('DROP TABLE recipes;');
-    await db.execAsync('ALTER TABLE recipes_new RENAME TO recipes;');
+      await db.execAsync('DROP TABLE recipes;');
+      await db.execAsync('ALTER TABLE recipes_new RENAME TO recipes;');
+    }
   } catch (error) {
     console.error('Migration error for recipes:', error);
   }
+}
+
+// Helper function to generate UUID for migrations
+function generateId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 async function migrateRecipeSectionsTable(db: SQLiteDatabase): Promise<void> {
@@ -341,6 +386,10 @@ async function ensureIndexes(db: SQLiteDatabase): Promise<void> {
       ON tags(name COLLATE NOCASE);
     CREATE INDEX IF NOT EXISTS idx_recipe_tags_recipe ON recipe_tags(recipe_id);
     CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_recipe_images_recipe
+      ON recipe_images(recipe_id);
+    CREATE INDEX IF NOT EXISTS idx_recipe_images_order
+      ON recipe_images(recipe_id, order_index);
   `);
 }
 
@@ -355,6 +404,7 @@ const DROP_TABLES_SQL = `
 DROP TABLE IF EXISTS recipe_tags;
 DROP TABLE IF EXISTS recipe_sections;
 DROP TABLE IF EXISTS recipe_ingredients;
+DROP TABLE IF EXISTS recipe_images;
 DROP TABLE IF EXISTS recipes;
 DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS settings;

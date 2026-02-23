@@ -11,6 +11,14 @@ export type InstructionSection = {
   steps: string[];
 };
 
+export type RecipeImage = {
+  id: string;
+  url: string;
+  width?: number;
+  height?: number;
+  orderIndex: number;
+};
+
 export type Recipe = {
   id: string;
   title: string;
@@ -19,9 +27,7 @@ export type Recipe = {
   tags: string[];
   lastUpdated: string;
   timesCooked: number;
-  imageUrl?: string;
-  imageWidth?: number;
-  imageHeight?: number;
+  images: RecipeImage[];
   isFavorite: boolean;
   ingredients: Ingredient[];
   instructionSections: InstructionSection[];

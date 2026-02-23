@@ -17,12 +17,16 @@ function RecipeCardComponent({ recipe, onPress, onFavoriteToggle }: RecipeCardPr
   const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const [isFavorite, setIsFavorite] = useState(recipe.isFavorite);
 
+  // Use first image for the card
+  const firstImage = recipe.images[0];
+  const hasMultipleImages = recipe.images.length > 1;
+
   const imageAspectRatio = useMemo(() => {
-    if (recipe.imageWidth && recipe.imageHeight && recipe.imageHeight > 0) {
-      return recipe.imageWidth / recipe.imageHeight;
+    if (firstImage?.width && firstImage?.height && firstImage.height > 0) {
+      return firstImage.width / firstImage.height;
     }
     return 4 / 3;
-  }, [recipe.imageWidth, recipe.imageHeight]);
+  }, [firstImage?.width, firstImage?.height]);
 
   const handleToggleFavorite = useCallback(async (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
@@ -75,6 +79,23 @@ function RecipeCardComponent({ recipe, onPress, onFavoriteToggle }: RecipeCardPr
           alignItems: 'center',
           justifyContent: 'center',
         },
+        imageIndicator: {
+          position: 'absolute',
+          bottom: spacing.xs,
+          right: spacing.xs,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 4,
+          borderRadius: radius.pill,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        },
+        imageIndicatorText: {
+          color: colors.textInverted,
+          ...typography.caption,
+          fontWeight: '600',
+        },
         content: {
           padding: spacing.sm,
           backgroundColor: colors.surfacePrimary,
@@ -102,11 +123,17 @@ function RecipeCardComponent({ recipe, onPress, onFavoriteToggle }: RecipeCardPr
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && { transform: [{ scale: 0.98 }] }]}>
       <View style={styles.imageContainer}>
-        {recipe.imageUrl ? (
-          <Image source={{ uri: recipe.imageUrl }} contentFit="cover" style={styles.image} />
+        {firstImage ? (
+          <Image source={{ uri: firstImage.url }} contentFit="cover" style={styles.image} />
         ) : (
           <View style={[styles.image, styles.placeholder]}>
             <Ionicons name="restaurant-outline" size={28} color={colors.textTertiary} />
+          </View>
+        )}
+        {hasMultipleImages && (
+          <View style={styles.imageIndicator}>
+            <Ionicons name="images-outline" size={12} color={colors.textInverted} />
+            <Text style={styles.imageIndicatorText}>{recipe.images.length}</Text>
           </View>
         )}
         <Pressable onPress={handleToggleFavorite} style={styles.favoriteButton}>
